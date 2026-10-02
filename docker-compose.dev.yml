@@ -1,0 +1,76 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: calculator-minio-dev
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data_dev:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: calculator-fastapi-dev
+    entrypoint: sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    image: node:22.20-alpine
+    container_name: calculator-nextjs-dev
+    working_dir: /app
+    command: sh -c "corepack enable pnpm && pnpm i --ignore-scripts && pnpm dev"
+    depends_on:
+      - api
+    ports:
+      - "3001:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - INTERNAL_API_URL=http://api:8000
+      - NEXT_PUBLIC_API_URL=http://localhost:8001
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+
+  postgres:
+    image: postgres:17
+    container_name: calculator-postgres-dev
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "5434:5432"
+    volumes:
+      - db_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data_dev:
+  frontend_node_modules:
+  minio_data_dev:

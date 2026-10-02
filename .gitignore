@@ -1,0 +1,57 @@
+backend/.env
+.idea
+.env
+backend/.dev.env
+
+
+# Python
+__pycache__
+*.pyc
+.mypy_cache
+.pytest_cache
+.venv
+venv
+env
+env3.*
+.Python
+pip-log.txt
+pip-delete-this-arg.txt
+
+# PyCharm/JetBrains
+.idea/  # This ignores the entire .idea directory
+*.iml
+!*.iml.patch
+*.ipr
+*.iws
+
+# FastAPI specific (often uses uvicorn, which might generate logs or cache)
+# Add any specific log files or database files if they are generated in the project root
+.coverage
+htmlcov/
+dist/
+site/
+test.db # Example if you use a local test database
+log.txt # Example log file
+
+# OS generated files
+.DS_Store # macOS
+.Trash-* # Linux
+*~ # Linux/macOS temporary files
+
+# Frontend — никогда не коммитить
+frontend/node_modules/
+frontend/.pnpm-store/
+frontend/.next/
+frontend/.turbo/
+node_modules/
+
+# Excel временные файлы
+~$*.xlsx
+~$*.xls
+
+# Nginx логи
+nginx/logs/
+
+# Флаг суперпользователя (локальный)
+.superuser_created
+
