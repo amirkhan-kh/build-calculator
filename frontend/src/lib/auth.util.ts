@@ -1,70 +1,50 @@
-"use server";
+import { getAuthDataAction } from "./auth.action";
 
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { ENV } from "@/configs/env.config";
+type AuthData = Awaited<ReturnType<typeof getAuthDataAction>>;
 
-function isTokenExpired(token: string): boolean {
-    try {
-        const payload = JSON.parse(
-            Buffer.from(token.split(".")[1], "base64url").toString("utf8"),
-        );
-        return !payload.exp || Date.now() / 1000 > payload.exp;
-    } catch {
-        return true;
-    }
+// Browser-side cache: without it every API call would first make a server
+// action round trip to Vercel, and Next.js runs server actions one at a time.
+const EXPIRY_MARGIN_SEC = 30;
+let cached: { data: AuthData; exp: number } | null = null;
+let inflight: Promise<AuthData> | null = null;
+
+function readTokenExp(token: string): number {
+	try {
+		const payload = JSON.parse(
+			atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")),
+		);
+		return typeof payload.exp === "number" ? payload.exp : 0;
+	} catch {
+		return 0;
+	}
 }
 
-async function attemptRefresh(refreshToken: string): Promise<string | null> {
-    try {
-        const res = await fetch(
-            `${ENV.PUBLIC_API_URL}/auth/refresh/?refresh_token=${encodeURIComponent(refreshToken)}`,
-            { method: "POST", cache: "no-store" },
-        );
-        if (!res.ok) return null;
-        const data = await res.json();
-        return data.access_token ?? null;
-    } catch {
-        return null;
-    }
+export function clearAuthCache() {
+	cached = null;
+	inflight = null;
 }
 
-export async function getAuthData() {
-    const cookieStore = await cookies();
-    const access = cookieStore.get("access_token")?.value;
-    const refresh = cookieStore.get("refresh_token")?.value;
+export async function getAuthData(): Promise<AuthData> {
+	if (typeof window === "undefined") {
+		return getAuthDataAction();
+	}
 
-    if (!access) {
-        redirect("/login");
-    }
+	if (cached && cached.exp - EXPIRY_MARGIN_SEC > Date.now() / 1000) {
+		return cached.data;
+	}
 
-    if (!isTokenExpired(access)) {
-        return { access, refresh: refresh ?? null };
-    }
+	if (!inflight) {
+		inflight = getAuthDataAction()
+			.then((data) => {
+				if (data?.access) {
+					cached = { data, exp: readTokenExp(data.access) };
+				}
+				return data;
+			})
+			.finally(() => {
+				inflight = null;
+			});
+	}
 
-    // Access token expired — try to refresh
-    if (!refresh || isTokenExpired(refresh)) {
-        cookieStore.delete("access_token");
-        cookieStore.delete("refresh_token");
-        redirect("/login");
-    }
-
-    const newAccess = await attemptRefresh(refresh);
-
-    if (!newAccess) {
-        cookieStore.delete("access_token");
-        cookieStore.delete("refresh_token");
-        redirect("/login");
-    }
-
-    const secureCookie = process.env.SECURE_COOKIES === "true";
-    cookieStore.set("access_token", newAccess, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: secureCookie,
-        maxAge: 60 * 60 * 24,
-        path: "/",
-    });
-
-    return { access: newAccess, refresh };
+	return inflight;
 }

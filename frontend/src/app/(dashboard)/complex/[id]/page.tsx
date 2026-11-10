@@ -16,9 +16,11 @@ export default async function SingleComplexPage({ params }: Props) {
 	if (!access) redirect("/login");
 	const { id } = await params;
 	if (!id) redirect("/complex");
-	const tc = await getTranslations("common");
-	const tco = await getTranslations("complex");
-	const currentComplexSafe = await getComplexById(id);
+	const [tc, tco, currentComplexSafe] = await Promise.all([
+		getTranslations("common"),
+		getTranslations("complex"),
+		getComplexById(id),
+	]);
 
 	const currentComplex = currentComplexSafe.data;
 

@@ -25,11 +25,12 @@ export default async function SingleApartmentsPage({ params }: Props) {
 	const { id } = await params;
 	if (!id) redirect("/");
 
-	const t = await getTranslations("apartment");
-	const tc = await getTranslations("common");
-	const tf = await getTranslations("filter");
-
-	const apartment = await getApartmentById(Number(id));
+	const [t, tc, tf, apartment] = await Promise.all([
+		getTranslations("apartment"),
+		getTranslations("common"),
+		getTranslations("filter"),
+		getApartmentById(Number(id)),
+	]);
 
 	if (!apartment || !apartment.data) {
 		return (

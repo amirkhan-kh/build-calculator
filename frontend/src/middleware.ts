@@ -19,7 +19,8 @@ export function middleware(req: NextRequest) {
     const refreshToken = req.cookies.get("refresh_token")?.value;
     const { pathname } = req.nextUrl;
 
-    const isProtected = PROTECTED_ROUTES.some((p) => pathname.startsWith(p));
+    const isProtected =
+        pathname === "/" || PROTECTED_ROUTES.some((p) => pathname.startsWith(p));
     const isAuthPage = AUTH_ROUTES.includes(pathname);
 
     if (isProtected) {
@@ -43,5 +44,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-	matcher: ["/complex/:path*", "/buildings/:path*", "/apartments/:path*", "/calculator-system/:path*", "/management/:path*", "/login"],
+	matcher: ["/", "/complex/:path*", "/buildings/:path*", "/apartments/:path*", "/calculator-system/:path*", "/management/:path*", "/login"],
 };

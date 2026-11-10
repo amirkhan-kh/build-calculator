@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { logoutAction } from "@/action/auth/logout.action";
+import { clearAuthCache } from "@/lib/auth.util";
 
 export function AuthGuard() {
     const queryClient = useQueryClient();
@@ -18,6 +19,7 @@ export function AuthGuard() {
             const data = event.query.state.data as { _meta?: { reason?: string } } | undefined;
             if (data?._meta?.reason === "TOKEN") {
                 redirectingRef.current = true;
+                clearAuthCache();
                 logoutAction();
             }
         });

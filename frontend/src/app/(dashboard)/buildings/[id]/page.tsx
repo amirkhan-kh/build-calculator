@@ -19,8 +19,8 @@ export default async function SingleBuildingPage({ params }: Props) {
 	if (!id) {
 		redirect("/");
 	}
-	const tc = await getTranslations("common");
-	const [buildingSafe, complexes] = await Promise.all([
+	const [tc, buildingSafe, complexes] = await Promise.all([
+		getTranslations("common"),
 		getBuildingById(id),
 		getComplexes(),
 	]);

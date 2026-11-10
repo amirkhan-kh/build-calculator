@@ -15,6 +15,8 @@ _raw_origins = os.getenv(
     "http://localhost,http://localhost:3000,http://localhost:3001,http://localhost:8000"
 )
 origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+# Masalan: https://build-calculator-.*\.vercel\.app (Vercel preview deploylari uchun)
+origin_regex = os.getenv("ALLOWED_ORIGIN_REGEX") or None
 
 
 TIMEZONE = pytz.timezone('Asia/Tashkent')

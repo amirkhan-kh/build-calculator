@@ -1,5 +1,7 @@
 # Деплой Calculator на VPS
 
+> Frontend в Vercel, backend на своём сервере — см. [DEPLOY_VERCEL.md](DEPLOY_VERCEL.md).
+
 ## Что нужно
 
 - VPS с Ubuntu 22.04 / 24.04 (минимум 2 CPU, 2 GB RAM, 20 GB SSD)

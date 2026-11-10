@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { CiLogout } from "react-icons/ci";
 import Link from "next/link";
 import { logoutAction } from "@/action/auth/logout.action";
+import { clearAuthCache } from "@/lib/auth.util";
 import { useAuthMe } from "@/action/hooks/login-hook/use-auth-me";
 
 interface IasideProps {
@@ -25,6 +26,7 @@ const Aside: React.FC<IasideProps> = ({ isOpen }) => {
 
 	const handleLogout = useCallback(() => {
 		startTransition(async () => {
+			clearAuthCache();
 			await logoutAction();
 		});
 	}, []);

@@ -98,7 +98,8 @@ success "Директории созданы: /opt/calculator, /opt/backups/post
 
 step "Настройка автоматического обновления SSL (cron)"
 if command -v crontab &>/dev/null; then
-  CRON_LINE="0 3 * * * certbot renew --quiet --post-hook 'docker exec calc-nginx nginx -s reload'"
+  # pre/post hook'lar sertifikat olinganda saqlanadi (nginx to'xtatiladi va qayta yoqiladi)
+  CRON_LINE="0 3 * * * certbot renew --quiet"
   (crontab -l 2>/dev/null | grep -v certbot; echo "$CRON_LINE") | crontab -
   success "Cron для обновления SSL настроен"
 else
@@ -138,8 +139,8 @@ echo -e "  1. Переключитесь на пользователя deploy:"
 echo -e "     ${YELLOW}su - deploy${RESET}"
 echo ""
 echo -e "  2. Скопируйте репозиторий на сервер:"
-echo -e "     ${YELLOW}git clone https://github.com/shukhratbekovb/calculator.git /opt/calculator${RESET}"
+echo -e "     ${YELLOW}git clone https://github.com/amirkhan-kh/build-calculator.git /opt/calculator${RESET}"
 echo ""
 echo -e "  3. Запустите деплой:"
-echo -e "     ${YELLOW}cd /opt/calculator && bash scripts/deploy.sh${RESET}"
+echo -e "     ${YELLOW}cd /opt/calculator && bash scripts/deploy-server.sh${RESET}"
 echo ""

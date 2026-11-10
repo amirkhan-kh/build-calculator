@@ -9,11 +9,10 @@ export default async function Complex() {
 	if (!access) {
 		redirect("/login");
 	}
-	const me = await getAuthMe();
+	const [me, buildings] = await Promise.all([getAuthMe(), getComplexes()]);
 	if (me.data?.is_platform_admin) {
 		redirect("/");
 	}
-	const buildings = await getComplexes();
 	return (
 		<>
 			<TableObjects initialComplex={buildings} />

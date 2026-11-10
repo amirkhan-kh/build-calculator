@@ -14,7 +14,8 @@ const nextConfig: NextConfig = {
 	},
 	poweredByHeader: false,
 	typedRoutes: true,
-	output: "standalone",
+	// Docker image uses standalone. Vercel builds its own output.
+	...(process.env.VERCEL ? {} : { output: "standalone" as const }),
 	transpilePackages: ["@t3-oss/env-nextjs", "@t3-oss/env-core"],
 	images: {
 		qualities: [75, 100],

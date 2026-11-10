@@ -1,4 +1,4 @@
-aiogram==3.22.0
+aiogram==3.28.2
 alembic==1.17.2
 amqp==5.3.1
 annotated-doc==0.0.4
