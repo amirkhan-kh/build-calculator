@@ -51,11 +51,20 @@ setup_env() {
   fi
 
   local proxy_mode le_email="" media_url
-  read -rp "API domeni (domen bo'lmasa — shunchaki Enter bosing): " API_DOMAIN
+  echo -e "  ${BOLD}API domeni${RESET} — serveringizga yo'naltirilgan O'Z domeningiz (masalan api.mysite.uz)."
+  echo -e "  Vercel manzili EMAS. Domeningiz bo'lmasa — shunchaki ${BOLD}Enter${RESET} bosing."
+  read -rp "API domeni: " API_DOMAIN
+  API_DOMAIN="${API_DOMAIN#*://}"
+  API_DOMAIN="${API_DOMAIN%%/*}"
+  if [[ "$API_DOMAIN" == *vercel.app* ]]; then
+    error "API domeni Vercel manzili bo'lishi mumkin emas. Skriptni qayta ishga tushiring va bu savolda Enter bosing."
+  fi
 
   read -rp "Vercel frontend manzili (masalan: https://build-calculator.vercel.app): " FRONTEND_URL
   [[ -z "$FRONTEND_URL" ]] && error "Frontend manzili bo'sh bo'lishi mumkin emas"
-  FRONTEND_URL="${FRONTEND_URL%/}"
+  FRONTEND_URL="${FRONTEND_URL#*://}"
+  FRONTEND_URL="https://${FRONTEND_URL%%/*}"
+  info "Frontend: ${FRONTEND_URL}"
 
   if [[ -z "$API_DOMAIN" ]]; then
     proxy_mode="http"
