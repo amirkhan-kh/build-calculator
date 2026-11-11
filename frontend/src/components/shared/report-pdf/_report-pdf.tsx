@@ -22,7 +22,7 @@ export const ReportTemplate = forwardRef<HTMLDivElement, Props>(
         const locale = useLocale();
 
         const formatter = useMemo(
-            () => new Intl.NumberFormat(locale, { minimumFractionDigits: 2 }),
+            () => new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
             [locale]
         );
         const formatCurrency = useMemo(
@@ -71,7 +71,7 @@ export const ReportTemplate = forwardRef<HTMLDivElement, Props>(
                                     />
                                 </div>
                             )}
-                            <h1 className="text-md font-bold uppercase text-[#46479f]">
+                            <h1 className="text-md font-bold uppercase text-[#1e2150]">
                                 {t("report_title_header")}
                             </h1>
                         </div>
@@ -106,10 +106,10 @@ export const ReportTemplate = forwardRef<HTMLDivElement, Props>(
                         </div>
                         <div className="bg-[#f0f3ff] p-4 rounded-sm flex items-center justify-between">
                             <div>
-                                <h3 className="text-[#46479f] uppercase text-xs font-bold mb-2">
+                                <h3 className="text-[#1e2150] uppercase text-xs font-bold mb-2">
                                     {t("monthly_payment")}
                                 </h3>
-                                <p className="text-2xl font-black text-[#46479f]">
+                                <p className="text-2xl font-black text-[#1e2150]">
                                     {formattedMonthlyPaymentShort}
                                     <span className="text-[10px] text-gray-500">
                                         {priceUnit}
@@ -164,7 +164,7 @@ export const ReportTemplate = forwardRef<HTMLDivElement, Props>(
                     </table>
 
                     <div className="bg-gray-50 p-2 border-l-4 border-[#7107e7]">
-                        <p className="uppercase text-xs font-bold text-[#46479f]">
+                        <p className="uppercase text-xs font-bold text-[#1e2150]">
                             {t("total_to_pay")} {formatCurrency(data.new_total_price)}
                         </p>
                     </div>
@@ -176,7 +176,7 @@ export const ReportTemplate = forwardRef<HTMLDivElement, Props>(
                         style={{ pageBreakBefore: "always" }}
                     >
                         <div className="flex justify-between border-b-2 border-[#7107e7] items-end mb-6">
-                            <h1 className="text-md font-bold uppercase text-[#46479f]">
+                            <h1 className="text-md font-bold uppercase text-[#1e2150]">
                                 {t("layout_page_title")}{apartmentNumber}
                             </h1>
                             <p className="text-[9px] text-gray-500">

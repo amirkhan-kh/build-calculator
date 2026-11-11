@@ -4,7 +4,6 @@ import { useFirms } from "@/action/hooks/firms-hook/get-firms";
 import { useUpdateFirm } from "@/action/hooks/firms-hook/update-firm";
 import { ModalAddFirm } from "@/components/shared/ui-demo/modals/firm-modal/modal-add-firm/_modal-add-firm";
 import { ModalEditFirm } from "@/components/shared/ui-demo/modals/firm-modal/modal-edit-firm/_modal-edit-firm";
-import { Input } from "@/components/ui/input";
 import {
 	Table,
 	TableBody,
@@ -13,17 +12,65 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
+import { PageHeader } from "@/components/shared/kit/page-header";
+import { FilterBar } from "@/components/shared/kit/filter-bar";
+import { SearchInput } from "@/components/shared/kit/search-input";
+import { Segmented } from "@/components/shared/kit/segmented";
+import { EmptyState, LoadingState } from "@/components/shared/kit/empty-state";
+import { monogram } from "@/components/shared/ui-demo/cards/_complex-card";
 import type { FirmStatusFilter } from "@/types/firm.types";
-import { Loader2 } from "lucide-react";
+import { Briefcase, Check, CircleCheck, CircleOff, Copy, Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { cn } from "@/lib/cn";
+
+function CopyValue({ value, secret }: { value: string; secret?: boolean }) {
+	const [shown, setShown] = useState(!secret);
+	const [copied, setCopied] = useState(false);
+
+	const copy = async () => {
+		try {
+			await navigator.clipboard.writeText(value);
+			setCopied(true);
+			setTimeout(() => setCopied(false), 1200);
+		} catch {
+			/* clipboard unavailable */
+		}
+	};
+
+	return (
+		<div className="group/copy inline-flex max-w-full items-center gap-1 rounded-md bg-slate-100/80 py-0.5 pl-2 pr-0.5">
+			<code className="truncate font-mono text-[12.5px] text-slate-700">
+				{shown ? value : "••••••••"}
+			</code>
+			{secret && (
+				<button
+					type="button"
+					onClick={() => setShown((s) => !s)}
+					className="grid size-6 shrink-0 place-items-center rounded text-slate-400 hover:bg-white hover:text-slate-700"
+				>
+					{shown ? <EyeOff size={13} /> : <Eye size={13} />}
+				</button>
+			)}
+			<button
+				type="button"
+				onClick={copy}
+				className="grid size-6 shrink-0 place-items-center rounded text-slate-400 hover:bg-white hover:text-slate-700"
+			>
+				{copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+			</button>
+		</div>
+	);
+}
 
 export function FirmsAdmin() {
 	const t = useTranslations("firms");
 	const [nameQuery, setNameQuery] = useState("");
 	const [status, setStatus] = useState<FirmStatusFilter>("all");
-	const { mutateAsync: updateFirm, isPending: isUpdating } = useUpdateFirm();
+	const [pendingId, setPendingId] = useState<number | null>(null);
+	const { mutateAsync: updateFirm } = useUpdateFirm();
 
 	const apiParams = useMemo(() => {
 		const params: { name__ilike?: string; is_active?: boolean } = {};
@@ -33,118 +80,136 @@ export function FirmsAdmin() {
 		return params;
 	}, [nameQuery, status]);
 
-	const { data: firms = [], isLoading, refetch } = useFirms(apiParams);
+	const { data: firms = [], isLoading } = useFirms(apiParams);
+	const { data: allFirms = [] } = useFirms({});
+	const activeCount = allFirms.filter((f) => f.is_active).length;
 
 	const handleToggle = async (id: number, isActive: boolean) => {
+		setPendingId(id);
 		try {
 			await updateFirm({ id, data: { is_active: !isActive } });
 			toast.success(isActive ? t("deactivated") : t("activated"));
-		} catch (error) {
-			toast.error(error instanceof Error ? error.message : t("update_error"));
+		} catch {
+			/* surfaced by useUpdateFirm */
+		} finally {
+			setPendingId(null);
 		}
 	};
 
+	const stats = [
+		{ icon: Briefcase, label: t("count_label"), value: allFirms.length, tone: "text-ink bg-indigo-50" },
+		{ icon: CircleCheck, label: t("filter_active"), value: activeCount, tone: "text-emerald-600 bg-emerald-50" },
+		{ icon: CircleOff, label: t("filter_inactive"), value: allFirms.length - activeCount, tone: "text-slate-500 bg-slate-100" },
+	];
+
 	return (
 		<section>
-			<div className="flex flex-col gap-4 pb-6 sm:flex-row sm:items-center sm:justify-between">
-				<div>
-					<h1 className="text-2xl font-black text-gray-900">{t("title")}</h1>
-					<p className="mt-1 text-sm text-gray-400">{t("subtitle")}</p>
-				</div>
-				<div className="flex items-center gap-3">
-					<span className="text-sm font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-1.5">
-						{t("count_label")}: {firms.length}
-					</span>
-					<ModalAddFirm onSuccess={() => refetch()} />
-				</div>
+			<PageHeader
+				title={t("title")}
+				description={t("subtitle")}
+				actions={<ModalAddFirm />}
+			/>
+
+			<div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+				{stats.map(({ icon: Icon, label, value, tone }) => (
+					<div key={label} className="glass flex items-center gap-3 rounded-2xl px-4 py-3.5">
+						<span className={cn("grid size-10 place-items-center rounded-xl", tone)}>
+							<Icon size={18} />
+						</span>
+						<div>
+							<p className="text-xs text-slate-500">{label}</p>
+							<p className="text-xl font-semibold tabular-nums text-slate-900">{value}</p>
+						</div>
+					</div>
+				))}
 			</div>
 
-			<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-				<Input
+			<FilterBar>
+				<SearchInput
 					value={nameQuery}
-					onChange={(e) => setNameQuery(e.target.value)}
+					onChange={setNameQuery}
+					debounce={300}
 					placeholder={t("filter_name")}
-					className="sm:max-w-64"
+					className="w-full sm:w-72"
 				/>
-				<div className="flex gap-2">
-					{(
-						[
-							["all", t("filter_all")],
-							["active", t("filter_active")],
-							["inactive", t("filter_inactive")],
-						] as const
-					).map(([value, label]) => (
-						<button
-							key={value}
-							type="button"
-							onClick={() => setStatus(value)}
-							className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-								status === value
-									? "bg-indigo-600 text-white"
-									: "bg-gray-100 text-gray-600 hover:bg-gray-200"
-							}`}
-						>
-							{label}
-						</button>
-					))}
-				</div>
-			</div>
+				<Segmented
+					value={status}
+					onChange={setStatus}
+					options={[
+						{ value: "all", label: t("filter_all") },
+						{ value: "active", label: t("filter_active") },
+						{ value: "inactive", label: t("filter_inactive") },
+					]}
+				/>
+			</FilterBar>
 
 			{isLoading ? (
-				<Loader2 className="animate-spin m-10" />
+				<LoadingState />
+			) : firms.length === 0 ? (
+				<EmptyState icon={Briefcase} title={t("empty")} />
 			) : (
 				<Table>
 					<TableHeader>
 						<TableRow>
-							<TableHead className="w-14">#</TableHead>
+							<TableHead className="w-12">#</TableHead>
 							<TableHead>{t("col_name")}</TableHead>
 							<TableHead>{t("col_login")}</TableHead>
 							<TableHead>{t("col_password")}</TableHead>
 							<TableHead>{t("col_status")}</TableHead>
-							<TableHead className="text-right">{t("col_action")}</TableHead>
+							<TableHead className="w-24" />
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{firms.length === 0 ? (
-							<TableRow>
-								<TableCell colSpan={6} className="text-center text-gray-400 py-8">
-									{t("empty")}
-								</TableCell>
-							</TableRow>
-						) : (
-							firms.map((firm, index) => (
-								<TableRow key={firm.id}>
-									<TableCell>{index + 1}</TableCell>
-									<TableCell className="font-medium">{firm.name}</TableCell>
-									<TableCell>{firm.username}</TableCell>
-									<TableCell className="font-mono text-xs">{firm.password}</TableCell>
-									<TableCell>
+						{firms.map((firm, index) => (
+							<TableRow key={firm.id} className={cn(!firm.is_active && "bg-slate-50/50")}>
+								<TableCell className="tabular-nums text-slate-400">{index + 1}</TableCell>
+								<TableCell>
+									<div className="flex items-center gap-3">
 										<span
-											className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-												firm.is_active
-													? "bg-green-50 text-green-700 border border-green-200"
-													: "bg-gray-100 text-gray-500 border border-gray-200"
-											}`}
+											className={cn(
+												"grid size-9 shrink-0 place-items-center rounded-lg text-xs font-semibold",
+												firm.is_active ? "bg-ink text-white" : "bg-slate-200 text-slate-500",
+											)}
+										>
+											{monogram(firm.name)}
+										</span>
+										<span className={cn("font-medium", firm.is_active ? "text-slate-900" : "text-slate-500")}>
+											{firm.name}
+										</span>
+									</div>
+								</TableCell>
+								<TableCell>
+									<CopyValue value={firm.username} />
+								</TableCell>
+								<TableCell>
+									<CopyValue value={firm.password} secret />
+								</TableCell>
+								<TableCell>
+									<label className="inline-flex items-center gap-2.5">
+										<Switch
+											checked={firm.is_active}
+											disabled={pendingId === firm.id}
+											onCheckedChange={() => handleToggle(firm.id, firm.is_active)}
+											aria-label={firm.is_active ? t("make_inactive") : t("make_active")}
+											title={firm.is_active ? t("make_inactive") : t("make_active")}
+										/>
+										<span
+											className={cn(
+												"text-xs font-medium",
+												firm.is_active ? "text-emerald-700" : "text-slate-500",
+											)}
 										>
 											{firm.is_active ? t("status_active") : t("status_inactive")}
 										</span>
-									</TableCell>
-									<TableCell className="text-right">
-										<div className="flex justify-end gap-2">
-											<ModalEditFirm firm={firm} onSuccess={() => refetch()} />
-											<button
-												type="button"
-												disabled={isUpdating}
-												onClick={() => handleToggle(firm.id, firm.is_active)}
-												className="px-2 py-1 rounded-[3px] text-xs border border-indigo-200 text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
-											>
-												{firm.is_active ? t("make_inactive") : t("make_active")}
-											</button>
-										</div>
-									</TableCell>
-								</TableRow>
-							))
-						)}
+									</label>
+								</TableCell>
+								<TableCell>
+									<div className="flex justify-end">
+										<ModalEditFirm firm={firm} />
+									</div>
+								</TableCell>
+							</TableRow>
+						))}
 					</TableBody>
 				</Table>
 			)}

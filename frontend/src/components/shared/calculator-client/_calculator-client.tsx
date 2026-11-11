@@ -1,15 +1,18 @@
 "use client";
 
 import {
-    Building as BuildingIcon,
-    ChevronRight,
+    Calculator as CalculatorIcon,
     CreditCard,
+    FileDown,
+    Loader2,
+    RotateCcw,
 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useReactToPrint } from "react-to-print";
 import { toast } from "sonner";
 import { useTranslations, useLocale } from "next-intl";
-import { useApartments } from "@/action/hooks/apartments-hook/get-apartments.hook";
+import { useBuildingApartments } from "@/action/hooks/apartments-hook/get-apartments.hook";
 import { useBuildings } from "@/action/hooks/buildings-hook/get-buildings";
 import { useCalculatePricing } from "@/action/hooks/calculator-hook/calculator.hook";
 import { useComplexes } from "@/action/hooks/complex-hook/get-complexes";
@@ -24,13 +27,20 @@ import type {
 import type { IComplex } from "@/types/complex.types";
 import type { SafeResponse } from "@/types/safe-response.types";
 import { ReportTemplate } from "../report-pdf/_report-pdf";
-
-const statusClassName: Record<TApartmentStatus, string> = {
-    free:      "bg-green-100 text-green-700 border border-green-200",
-    sold:      "bg-red-100 text-red-700 border border-red-200",
-    booked:    "bg-yellow-100 text-yellow-700 border border-yellow-200",
-    withdrawn: "bg-gray-100 text-gray-500 border border-gray-300",
-};
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Field } from "@/components/shared/kit/field";
+import { FormSection } from "@/components/shared/kit/form-section";
+import { Segmented } from "@/components/shared/kit/segmented";
+import { statusStyle } from "@/lib/apartment-status";
+import { cn } from "@/lib/cn";
 
 const EMPTY_DATA: CalculatePricingResponse = {
     block: "-",
@@ -47,6 +57,17 @@ const EMPTY_DATA: CalculatePricingResponse = {
     payment_dates: [],
 };
 
+function sliderBg(percent: number) {
+    return `linear-gradient(to right, #1e2150 0%, #4f46e5 ${percent}%, #e2e8f0 ${percent}%, #e2e8f0 100%)`;
+}
+
+function nextMonthDate() {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1, 1);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function formatDay(date: string): string {
     if (!date || date.length < 10) return "-";
     const day = date.slice(8, 10);
@@ -55,17 +76,18 @@ function formatDay(date: string): string {
 
 export const CalculatorClientPage: React.FC = () => {
     const componentRef = useRef<HTMLDivElement>(null);
-    const [selectedComplexId, setSelectedComplexId] = useState("");
-    const [selectedBuildingId, setSelectedBuildingId] = useState("");
-    const [selectedApartmentId, setSelectedApartmentId] = useState("");
+    const searchParams = useSearchParams();
+    const [selectedComplexId, setSelectedComplexId] = useState(searchParams.get("complex") ?? "");
+    const [selectedBuildingId, setSelectedBuildingId] = useState(searchParams.get("building") ?? "");
+    const [selectedApartmentId, setSelectedApartmentId] = useState(searchParams.get("apartment") ?? "");
     const [result, setResult] = useState<CalculatePricingResponse | null>(null);
     const [investmentType, setInvestmentType] = useState<InvestmentType>("percentage");
     const [formData, setFormData] = useState<CalculatePricingPayload>({
         first_investment_rate: 15,
-        first_payment_date: "2026-02-20",
+        first_payment_date: nextMonthDate(),
         period_count: 12,
     });
-    const [pricePerSqrm, setPricePerSqrm] = useState<string>("");
+    const [customPrice, setPricePerSqrm] = useState<string | null>(null);
 
     const t = useTranslations("calculator");
     const ts = useTranslations("status");
@@ -75,15 +97,17 @@ export const CalculatorClientPage: React.FC = () => {
     const { data: buildingsData = [] } = useBuildings(
         selectedComplexId ? { complex_id: Number(selectedComplexId) } : null
     );
-    const { data: apartmentsData = [] } = useApartments(
-        selectedBuildingId ? { building_id: Number(selectedBuildingId) } : null
+    const { data: apartmentsData = [], isLoading: isApartmentsLoading } = useBuildingApartments(
+        Number(selectedBuildingId) || 0,
     );
     const { data: layoutsData = [] } = useLayoutsByBuilding(selectedBuildingId || null);
 
     const complexes = (complexesData || []) as IComplex[];
-    // Backend filters by complex_id / building_id — no client-side filtering needed
     const buildings = (buildingsData || []) as IBuildings[];
-    const apartments = (apartmentsData || []) as IApartment[];
+    const apartments = useMemo(
+        () => (selectedBuildingId ? ((apartmentsData || []) as IApartment[]) : []),
+        [apartmentsData, selectedBuildingId],
+    );
 
     const buildingUnitPrice = useMemo(
         () => buildings.find((b) => String(b.id) === String(selectedBuildingId))?.price_unit ?? 0,
@@ -100,6 +124,8 @@ export const CalculatorClientPage: React.FC = () => {
         [apartments, selectedApartmentId]
     );
 
+    const pricePerSqrm = customPrice ?? (foundApartment ? String(Number(foundApartment.final_price)) : "");
+
     const layoutImageUrl = useMemo(() => {
         if (!foundApartment || !layoutsData.length) return undefined;
         const match = layoutsData.find(
@@ -113,7 +139,7 @@ export const CalculatorClientPage: React.FC = () => {
     const displayData = result ?? EMPTY_DATA;
 
     const formatter = useMemo(
-        () => new Intl.NumberFormat(locale, { minimumFractionDigits: 0 }),
+        () => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }),
         [locale]
     );
     const formatCurrency = useCallback(
@@ -125,8 +151,6 @@ export const CalculatorClientPage: React.FC = () => {
         () => ((formData.period_count - 1) / 59) * 100,
         [formData.period_count]
     );
-
-    const apartmentStatus = foundApartment?.status ?? "";
 
     const handleInvestmentRateChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -175,449 +199,339 @@ export const CalculatorClientPage: React.FC = () => {
         documentTitle: `report_${selectedApartmentId}`,
     });
 
+    const unit = String(buildingUnitPrice || "");
+    const firstInvestment =
+        investmentType === "percentage"
+            ? displayData.new_total_price * (formData.first_investment_rate / 100)
+            : formData.first_investment_rate;
+    const style = foundApartment ? statusStyle(foundApartment.status) : null;
+
+    const summaryRows = [
+        { label: t("block_label"), value: displayData.block },
+        { label: t("floor_label"), value: displayData.floor || "—" },
+        { label: t("total_area"), value: `${displayData.area} м²` },
+        { label: t("price_per_sqm"), value: `${formatCurrency(displayData.new_price_per_sqrm)} ${unit}` },
+        { label: t("first_investment"), value: `${formatCurrency(firstInvestment)} ${unit}`, accent: true },
+        { label: t("installment_period"), value: `${formData.period_count} ${t("months")}` },
+    ];
+
     return (
-        <div className="p-1">
-            <div className="grid grid-cols-3 gap-5">
-                <div className="col-span-2 space-y-5">
-                    <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                        <h2 className="text-xl font-black text-gray-900 mb-6">
-                            {t("payment_settings")}
-                        </h2>
+        <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="flex min-w-0 flex-col gap-5">
+                <form onSubmit={handleSubmit} className="glass flex flex-col gap-6 rounded-2xl p-5 sm:p-6">
+                    <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+                        {t("payment_settings")}
+                    </h2>
 
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="flex gap-4">
-                                <div className="space-y-2 flex-1">
-                                    <label htmlFor="complex" className="text-sm font-medium">
-                                        {t("complex_label")}
-                                    </label>
-                                    <select
-                                        id="complex"
-                                        value={selectedComplexId}
-                                        onChange={(e) => {
-                                            setSelectedComplexId(e.target.value);
-                                            setSelectedBuildingId("");
-                                            setSelectedApartmentId("");
-                                        }}
-                                        className="w-full p-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        required
-                                    >
-                                        <option value="">{t("select_complex")}</option>
-                                        {complexes.map((c) => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="space-y-2 flex-1">
-                                    <label htmlFor="building" className="text-sm font-medium">
-                                        {t("building_label")}
-                                    </label>
-                                    <select
-                                        id="building"
-                                        value={selectedBuildingId}
-                                        onChange={(e) => {
-                                            setSelectedBuildingId(e.target.value);
-                                            setSelectedApartmentId("");
-                                        }}
-                                        className="w-full p-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        disabled={!selectedComplexId}
-                                        required
-                                    >
-                                        <option value="">{t("select_building")}</option>
-                                        {buildings.map((b) => (
-                                            <option key={b.id} value={b.id}>{b.name}</option>
-                                        ))}
-                                    </select>
-                                    {selectedComplexId && buildings.length === 0 && (
-                                        <span className="text-xs text-amber-600 font-normal italic">
-                                            {t("no_buildings")}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="flex gap-5 items-end justify-between">
-                                    <div className="space-y-2 flex flex-col flex-1">
-                                        <label htmlFor="home" className="text-sm font-medium text-gray-700">
-                                            {t("apartment_label")}
-                                        </label>
-                                        <select
-                                            id="home"
-                                            value={selectedApartmentId}
-                                            onChange={(e) => {
-                                                const apt = apartments.find(
-                                                    (a) => String(a.id) === e.target.value,
-                                                );
-                                                setSelectedApartmentId(e.target.value);
-                                                setPricePerSqrm(apt ? String(apt.final_price) : "");
-                                            }}
-                                            className="w-[63%] p-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-gray-50 flex-1"
-                                            disabled={!selectedBuildingId}
-                                            required
-                                        >
-                                            <option value="">{t("select_apartment")}</option>
-                                            {apartments.map((a) => (
-                                                <option key={a.id} value={a.id}>
-                                                    №{a.number} - {a.area} м² ({a.floor} - {t("floor_label")})
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {selectedBuildingId && apartments.length === 0 && (
-                                            <span className="text-xs text-amber-600 font-normal italic">
-                                                {t("no_apartments")}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {apartmentStatus && (
-                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide ${statusClassName[apartmentStatus as TApartmentStatus] ?? "bg-gray-100 text-gray-500"}`}>
-                                            {ts(apartmentStatus as TApartmentStatus)}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className="space-y-3">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <label htmlFor="type" className="text-sm font-semibold text-gray-700">
-                                                {t("investment_type_label")}
-                                            </label>
-                                            <select
-                                                id="type"
-                                                value={investmentType}
-                                                onChange={(e) => {
-                                                    setInvestmentType(e.target.value as InvestmentType);
-                                                    setFormData((prev) => ({ ...prev, first_investment_rate: 0 }));
-                                                }}
-                                                className="w-full p-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                                            >
-                                                <option value="percentage">{t("percentage_option")}</option>
-                                                <option value="amount">{t("amount_option", { unit: buildingUnitPrice })}</option>
-                                            </select>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <label htmlFor="unit-price" className="text-sm font-semibold text-gray-700">
-                                                {investmentType === "percentage" ? t("rate_label") : t("amount_label")}
-                                            </label>
-                                            <div className="relative">
-                                                <input
-                                                    id="unit-price"
-                                                    type="number"
-                                                    value={formData.first_investment_rate || ""}
-                                                    onChange={handleInvestmentRateChange}
-                                                    className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none pr-12 font-bold"
-                                                    placeholder="0"
-                                                />
-                                                <span
-                                                    role="none"
-                                                    className="absolute right-3 top-2.5 text-gray-400 text-sm font-bold"
-                                                >
-                                                    {investmentType === "percentage" ? "%" : buildingUnitPrice}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {investmentType === "percentage" && (
-                                        <div className="pt-2">
-                                            <div className="relative w-full px-1.5">
-                                                <input
-                                                    type="range"
-                                                    min="0"
-                                                    max="100"
-                                                    value={formData.first_investment_rate}
-                                                    onChange={handleInvestmentRateChange}
-                                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                                                    style={{
-                                                        background: `linear-gradient(to right, #47479f 0%, #3b82f6 ${formData.first_investment_rate}%, #e5e7eb ${formData.first_investment_rate}%, #e5e7eb 100%)`,
-                                                    }}
-                                                />
-                                            </div>
-                                            <div className="relative w-full h-4 mt-1">
-                                                <span className="absolute left-0 text-[10px] text-gray-400 font-bold uppercase">0%</span>
-                                                <span className="absolute left-1/4 -translate-x-1/5 text-[10px] text-gray-400 font-bold uppercase">25%</span>
-                                                <span className="absolute left-1/2 -translate-x-1/3 text-[10px] text-gray-400 font-bold uppercase">50%</span>
-                                                <span className="absolute left-3/4 -translate-x-1/2 text-[10px] text-gray-400 font-bold uppercase">75%</span>
-                                                <span className="absolute right-0 text-[10px] text-gray-400 font-bold uppercase">100%</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm font-medium">
-                                        <span>{t("period_label")}</span>
-                                        <span className="text-indigo-600 font-bold">
-                                            {formData.period_count} {t("months")}
-                                        </span>
-                                    </div>
-                                    <div className="relative w-full px-1">
-                                        <input
-                                            type="range"
-                                            min="1"
-                                            max="60"
-                                            value={formData.period_count}
-                                            onChange={handlePeriodChange}
-                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer relative z-10"
-                                            style={{
-                                                background: `linear-gradient(to right, #47479f 0%, #3b82f6 ${sliderPercentage}%, #e5e7eb ${sliderPercentage}%, #e5e7eb 100%)`,
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="relative w-full h-4 mt-1">
-                                        <span className="absolute left-0 text-[10px] text-gray-400 font-bold uppercase">1 {t("months")}</span>
-                                        <span className="absolute left-[19.6%] -translate-x-1/2 text-[10px] text-gray-400 font-bold uppercase">12</span>
-                                        <span className="absolute left-[39%] -translate-x-1/2 text-[10px] text-gray-400 font-bold uppercase">24</span>
-                                        <span className="absolute left-[59.3%] -translate-x-1/2 text-[10px] text-gray-400 font-bold uppercase">36</span>
-                                        <span className="absolute left-[78.6%] -translate-x-1/2 text-[10px] text-gray-400 font-bold uppercase">48</span>
-                                        <span className="absolute right-0 text-[10px] text-gray-400 font-bold uppercase">60 {t("months")}</span>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label htmlFor="date-pay" className="text-sm font-medium text-gray-700">
-                                            {t("first_payment_label")}
-                                        </label>
-                                        <input
-                                            id="date-pay"
-                                            type="date"
-                                            value={formData.first_payment_date}
-                                            onChange={handleDateChange}
-                                            className="w-full p-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label htmlFor="edit-price" className="text-sm font-medium text-gray-700">
-                                            {t("price_m2_label")}{" "}
-                                            <span className="text-[10px] text-gray-400 font-normal">
-                                                {buildingUnitPrice}
-                                            </span>
-                                        </label>
-                                        <input
-                                            id="edit-price"
-                                            type="number"
-                                            value={pricePerSqrm}
-                                            onChange={(e) => setPricePerSqrm(e.target.value)}
-                                            placeholder={
-                                                foundApartment
-                                                    ? String(foundApartment.final_price)
-                                                    : t("select_apartment")
-                                            }
-                                            className="w-full p-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-4 pt-4">
-                                <button
-                                    type="submit"
-                                    disabled={calculateMutation.isPending}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 rounded-xl flex items-center disabled:opacity-50 active:scale-95 transition-all"
-                                >
-                                    {calculateMutation.isPending ? (
-                                        t("calculating")
-                                    ) : (
-                                        <>
-                                            {t("calculate_btn")}{" "}
-                                            <ChevronRight className="h-5 w-5 ml-2" />
-                                        </>
-                                    )}
-                                </button>
-                                <button
-                                    type="reset"
-                                    onClick={() => {
-                                        setSelectedComplexId("");
-                                        setSelectedBuildingId("");
-                                        setSelectedApartmentId("");
-                                        setResult(null);
-                                        setPricePerSqrm("");
-                                    }}
-                                    className="px-6 border border-gray-200 rounded-xl hover:bg-gray-50 font-medium"
-                                >
-                                    {t("reset_btn")}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    {(foundApartment || result) && (
-                        <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
-                            <div className="flex items-center gap-3 mb-5">
-                                <div className="p-3 rounded-xl bg-indigo-50">
-                                    <BuildingIcon className="text-indigo-500" />
-                                </div>
-                                <h2 className="text-xl font-black text-gray-900">
-                                    {t("apartment_details")}
-                                </h2>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="space-y-1 text-center">
-                                    <span className="text-[10px] text-gray-400 uppercase font-bold">{t("block_label")}</span>
-                                    <div className="p-2 bg-gray-50 border border-gray-100 rounded-xl font-black text-lg">{displayData.block}</div>
-                                </div>
-                                <div className="space-y-1 text-center">
-                                    <span className="text-[10px] text-gray-400 uppercase font-bold">{t("floor_label")}</span>
-                                    <div className="p-2 bg-gray-50 border border-gray-100 rounded-xl font-black text-lg">{displayData.floor}</div>
-                                </div>
-                                <div className="space-y-1 text-center">
-                                    <span className="text-[10px] text-gray-400 uppercase font-bold">{t("area_label")}</span>
-                                    <div className="p-2 bg-gray-50 border border-gray-100 rounded-xl font-black text-lg">{displayData.area} м²</div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {result && result.payment_dates.length > 0 && (
-                        <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
-                            <h2 className="text-xl font-black text-gray-900 mb-4">
-                                {t("schedule_title")}
-                            </h2>
-                            <div className="overflow-auto max-h-96 rounded-xl border border-gray-100">
-                                <table className="w-full border-collapse">
-                                    <thead className="sticky top-0 z-10">
-                                        <tr className="bg-indigo-50">
-                                            <th className="py-2 px-4 text-xs font-bold text-indigo-700 text-center border-b border-indigo-100 w-12">
-                                                №
-                                            </th>
-                                            <th className="py-2 px-4 text-xs font-bold text-indigo-700 text-center border-b border-indigo-100">
-                                                {t("payment_date_col")}
-                                            </th>
-                                            <th className="py-2 px-4 text-xs font-bold text-indigo-700 text-center border-b border-indigo-100">
-                                                {t("payment_total_col")}
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {result.payment_dates.map((d, i) => (
-                                            <tr
-                                                key={d}
-                                                className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                                            >
-                                                <td className="py-2 px-4 text-xs text-center text-gray-500 font-medium">
-                                                    {i + 1}
-                                                </td>
-                                                <td className="py-2 px-4 text-xs text-center font-medium">
-                                                    {new Date(d).toLocaleDateString(locale)}
-                                                </td>
-                                                <td className="py-2 px-4 text-xs text-center font-bold text-indigo-700">
-                                                    {formatCurrency(result.monthly_payment)}{" "}
-                                                    <span className="text-[10px] text-gray-400 font-normal">
-                                                        {buildingUnitPrice}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="space-y-4">
-                    <div className="bg-indigo-600 rounded-2xl p-8 text-white shadow-xl">
-                        <div className="flex justify-between mb-4">
-                            <span className="font-medium opacity-80 uppercase text-xs tracking-wider">
-                                {t("monthly_payment")}
-                            </span>
-                            <CreditCard className="text-white/60" />
-                        </div>
-                        <div className="text-center mb-6">
-                            <p className="text-4xl font-black tracking-tight">
-                                {displayData.monthly_payment > 0
-                                    ? formatCurrency(displayData.monthly_payment)
-                                    : "0"}
-                            </p>
-                            <p className="text-white/60 text-[10px] uppercase font-bold mt-1">
-                                {buildingUnitPrice} / {t("per_month")}
-                            </p>
-                        </div>
-                        <div className="bg-white/10 p-4 rounded-xl text-center border border-white/10">
-                            <p className="text-[10px] uppercase opacity-60 font-bold">
-                                {t("payment_day")}
-                            </p>
-                            <p className="text-2xl font-black">
-                                {displayData.payment_dates?.length > 0
-                                    ? formatDay(displayData.payment_dates[0])
-                                    : "-"}
-                                {t("payment_number_suffix")}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                        <h3 className="font-black text-gray-900 uppercase text-sm border-b border-gray-100 pb-2">
-                            {t("summary_title")}
-                        </h3>
-                        <div className="space-y-3">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-500">{t("total_area")}</span>
-                                <span className="font-bold">{displayData.area} м²</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-500">{t("price_per_sqm")}</span>
-                                <span className="font-bold">
-                                    {formatCurrency(displayData.new_price_per_sqrm)}{" "}
-                                    <span className="text-[10px] text-gray-500">{buildingUnitPrice}</span>
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-500">{t("first_investment")}</span>
-                                <span className="font-black text-indigo-600">
-                                    {investmentType === "percentage"
-                                        ? formatCurrency(
-                                              displayData.new_total_price *
-                                                  (formData.first_investment_rate / 100),
-                                          )
-                                        : formatCurrency(formData.first_investment_rate)}{" "}
-                                    <span className="text-[10px] text-gray-500">{buildingUnitPrice}</span>
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-500">{t("installment_period")}</span>
-                                <span className="font-bold">{formData.period_count} {t("months")}</span>
-                            </div>
-                            <div className="flex justify-between text-xl pt-4 border-t font-black text-indigo-600">
-                                <span className="uppercase text-sm self-center text-gray-800">
-                                    {t("total")}
-                                </span>
-                                <span>
-                                    {formatCurrency(displayData.new_total_price)}{" "}
-                                    <span className="text-[10px] text-gray-500">{buildingUnitPrice}</span>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {result && (
-                        <>
-                            <button
-                                type="button"
-                                onClick={handlePrint}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 rounded-xl flex items-center disabled:opacity-50 active:scale-95 transition-all"
+                    <FormSection title={t("section_object")}>
+                        <Field label={t("complex_label")} required>
+                            <Select
+                                value={selectedComplexId}
+                                onValueChange={(v) => {
+                                    setSelectedComplexId(v);
+                                    setSelectedBuildingId("");
+                                    setSelectedApartmentId("");
+                                    setResult(null);
+                                }}
                             >
-                                {t("download_pdf")}
-                            </button>
-                            <div className="hidden">
-                                <ReportTemplate
-                                    ref={componentRef}
-                                    data={displayData}
-                                    apartmentNumber={
-                                        foundApartment?.number?.toString() || ""
-                                    }
-                                    imgUrl={complexLogoUrl ?? undefined}
-                                    priceUnit={buildingUnitPrice}
-                                    layoutImageUrl={layoutImageUrl}
-                                />
+                                <SelectTrigger>
+                                    <SelectValue placeholder={t("select_complex")} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {complexes.map((c) => (
+                                        <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </Field>
+                        <Field
+                            label={t("building_label")}
+                            required
+                            hint={selectedComplexId && buildings.length === 0 ? t("no_buildings") : undefined}
+                        >
+                            <Select
+                                value={selectedBuildingId}
+                                disabled={!selectedComplexId}
+                                onValueChange={(v) => {
+                                    setSelectedBuildingId(v);
+                                    setSelectedApartmentId("");
+                                    setResult(null);
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder={t("select_building")} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {buildings.map((b) => (
+                                        <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </Field>
+                        <Field
+                            label={t("apartment_label")}
+                            required
+                            className="sm:col-span-2"
+                            hint={selectedBuildingId && !isApartmentsLoading && apartments.length === 0 ? t("no_apartments") : undefined}
+                        >
+                            <Select
+                                value={selectedApartmentId}
+                                disabled={!selectedBuildingId}
+                                onValueChange={(v) => {
+                                    setSelectedApartmentId(v);
+                                    setPricePerSqrm(null);
+                                    setResult(null);
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder={t("select_apartment")} />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-80">
+                                    {apartments.map((a) => (
+                                        <SelectItem key={a.id} value={String(a.id)}>
+                                            <span className="flex items-center gap-2">
+                                                <span className={cn("size-2 shrink-0 rounded-full", statusStyle(a.status).dot)} />
+                                                №{a.number} · {Number(a.area)} м² · {t("floor_label")} {a.floor}
+                                            </span>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </Field>
+
+                        {foundApartment && style && (
+                            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-slate-200/70 bg-white/70 px-4 py-3 text-[13px] sm:col-span-2">
+                                <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium", style.chip)}>
+                                    <span className={cn("size-1.5 rounded-full", style.dot)} />
+                                    {ts(foundApartment.status as TApartmentStatus)}
+                                </span>
+                                <span className="text-slate-500">{t("floor_label")} <b className="font-semibold text-slate-800">{foundApartment.floor}</b></span>
+                                <span className="text-slate-500">{t("area_label")} <b className="font-semibold text-slate-800">{Number(foundApartment.area)} м²</b></span>
+                                <span className="text-slate-500">{t("price_m2_label")} <b className="font-semibold tabular-nums text-slate-800">{formatCurrency(Number(foundApartment.final_price))} {unit}</b></span>
                             </div>
-                        </>
-                    )}
-                </div>
+                        )}
+                    </FormSection>
+
+                    <FormSection title={t("section_payment")}>
+                        <Field label={t("investment_type_label")}>
+                            <Segmented
+                                className="w-full [&>button]:flex-1"
+                                value={investmentType}
+                                onChange={(v) => {
+                                    setInvestmentType(v);
+                                    setFormData((prev) => ({ ...prev, first_investment_rate: 0 }));
+                                }}
+                                options={[
+                                    { value: "percentage", label: t("percentage_option") },
+                                    { value: "amount", label: t("amount_option", { unit }) },
+                                ]}
+                            />
+                        </Field>
+                        <Field label={investmentType === "percentage" ? t("rate_label") : t("amount_label")} htmlFor="unit-price">
+                            <div className="relative">
+                                <Input
+                                    id="unit-price"
+                                    type="number"
+                                    value={formData.first_investment_rate || ""}
+                                    onChange={handleInvestmentRateChange}
+                                    className="pr-14 font-semibold tabular-nums"
+                                    placeholder="0"
+                                />
+                                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
+                                    {investmentType === "percentage" ? "%" : unit}
+                                </span>
+                            </div>
+                        </Field>
+                        {investmentType === "percentage" && (
+                            <div className="sm:col-span-2">
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    value={formData.first_investment_rate}
+                                    onChange={handleInvestmentRateChange}
+                                    className="range-slider w-full"
+                                    style={{ background: sliderBg(formData.first_investment_rate) }}
+                                    aria-label={t("rate_label")}
+                                />
+                                <div className="mt-1.5 flex justify-between text-[11px] font-medium tabular-nums text-slate-400">
+                                    {[0, 25, 50, 75, 100].map((v) => <span key={v}>{v}%</span>)}
+                                </div>
+                            </div>
+                        )}
+                    </FormSection>
+
+                    <FormSection title={t("section_terms")}>
+                        <div className="sm:col-span-2">
+                            <div className="mb-2 flex items-center justify-between text-[13px]">
+                                <span className="font-medium text-slate-700">{t("period_label")}</span>
+                                <span className="rounded-md bg-slate-900/[0.05] px-2 py-0.5 font-semibold tabular-nums text-ink">
+                                    {formData.period_count} {t("months")}
+                                </span>
+                            </div>
+                            <input
+                                type="range"
+                                min="1"
+                                max="60"
+                                value={formData.period_count}
+                                onChange={handlePeriodChange}
+                                className="range-slider w-full"
+                                style={{ background: sliderBg(sliderPercentage) }}
+                                aria-label={t("period_label")}
+                            />
+                            <div className="mt-1.5 flex justify-between text-[11px] font-medium tabular-nums text-slate-400">
+                                {[1, 12, 24, 36, 48, 60].map((v) => <span key={v}>{v}</span>)}
+                            </div>
+                        </div>
+                        <Field label={t("first_payment_label")} htmlFor="date-pay">
+                            <Input
+                                id="date-pay"
+                                type="date"
+                                value={formData.first_payment_date}
+                                onChange={handleDateChange}
+                            />
+                        </Field>
+                        <Field label={<>{t("price_m2_label")} <span className="font-normal text-slate-400">{unit}</span></>} htmlFor="edit-price">
+                            <Input
+                                id="edit-price"
+                                type="number"
+                                value={pricePerSqrm}
+                                onChange={(e) => setPricePerSqrm(e.target.value)}
+                                placeholder={foundApartment ? String(Number(foundApartment.final_price)) : t("select_apartment")}
+                                className="font-semibold tabular-nums"
+                            />
+                        </Field>
+                    </FormSection>
+
+                    <div className="flex flex-wrap gap-2 border-t border-slate-200/70 pt-5">
+                        <Button type="submit" size="lg" disabled={calculateMutation.isPending || !selectedApartmentId}>
+                            {calculateMutation.isPending ? <Loader2 className="animate-spin" /> : <CalculatorIcon />}
+                            {calculateMutation.isPending ? t("calculating") : t("calculate_btn")}
+                        </Button>
+                        <Button
+                            type="button"
+                            size="lg"
+                            variant="ghost"
+                            onClick={() => {
+                                setSelectedComplexId("");
+                                setSelectedBuildingId("");
+                                setSelectedApartmentId("");
+                                setResult(null);
+                                setPricePerSqrm(null);
+                            }}
+                        >
+                            <RotateCcw />
+                            {t("reset_btn")}
+                        </Button>
+                    </div>
+                </form>
+
+                {result && result.payment_dates.length > 0 && (
+                    <div className="surface overflow-hidden">
+                        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                            <h2 className="text-base font-semibold text-slate-900">{t("schedule_title")}</h2>
+                            <span className="text-xs text-slate-500">
+                                {result.payment_dates.length} {t("months")}
+                            </span>
+                        </div>
+                        <div className="max-h-[420px] overflow-auto scrollbar-thin">
+                            <table className="w-full text-sm">
+                                <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur">
+                                    <tr className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                                        <th className="h-9 w-14 px-5 text-left">№</th>
+                                        <th className="h-9 px-5 text-left">{t("payment_date_col")}</th>
+                                        <th className="h-9 px-5 text-right">{t("payment_total_col")}</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {result.payment_dates.map((d, i) => (
+                                        <tr key={d} className="transition-colors hover:bg-slate-50/70">
+                                            <td className="px-5 py-2.5 text-xs tabular-nums text-slate-400">{i + 1}</td>
+                                            <td className="px-5 py-2.5 tabular-nums text-slate-700">
+                                                {new Date(d).toLocaleDateString(locale)}
+                                            </td>
+                                            <td className="px-5 py-2.5 text-right font-semibold tabular-nums text-slate-900">
+                                                {formatCurrency(result.monthly_payment)}
+                                                <span className="ml-1 text-[11px] font-normal text-slate-400">{unit}</span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
             </div>
+
+            <aside className="flex flex-col gap-4 xl:sticky xl:top-24">
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-ink via-ink-soft to-[#3b3f8f] p-6 text-white shadow-xl shadow-ink/25">
+                    <div className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-indigo-400/20 blur-2xl" />
+                    <div className="relative flex items-center justify-between">
+                        <span className="text-xs font-medium uppercase tracking-wider text-white/60">
+                            {t("monthly_payment")}
+                        </span>
+                        <CreditCard className="size-5 text-white/50" />
+                    </div>
+                    <p className="relative mt-4 text-4xl font-semibold tracking-tight tabular-nums">
+                        {displayData.monthly_payment > 0 ? formatCurrency(displayData.monthly_payment) : "0"}
+                    </p>
+                    <p className="relative mt-1 text-xs text-white/60">
+                        {unit} / {t("per_month")}
+                    </p>
+                    <div className="relative mt-5 flex items-center justify-between rounded-xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-sm">
+                        <span className="text-xs text-white/70">{t("payment_day")}</span>
+                        <span className="text-lg font-semibold tabular-nums">
+                            {displayData.payment_dates?.length > 0 ? formatDay(displayData.payment_dates[0]) : "—"}
+                            {displayData.payment_dates?.length > 0 && t("payment_number_suffix")}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="glass rounded-2xl p-5">
+                    <h3 className="eyebrow mb-3">{t("summary_title")}</h3>
+                    {!result && (
+                        <p className="mb-3 rounded-lg bg-slate-900/[0.03] px-3 py-2 text-xs leading-relaxed text-slate-500">
+                            {t("result_hint")}
+                        </p>
+                    )}
+                    <dl className="flex flex-col gap-2.5 text-sm">
+                        {summaryRows.map((r) => (
+                            <div key={r.label} className="flex items-center justify-between gap-3">
+                                <dt className="text-slate-500">{r.label}</dt>
+                                <dd className={cn("text-right font-medium tabular-nums", r.accent ? "text-ink" : "text-slate-900")}>
+                                    {r.value}
+                                </dd>
+                            </div>
+                        ))}
+                    </dl>
+                    <div className="mt-4 flex items-end justify-between gap-3 border-t border-slate-200/70 pt-4">
+                        <span className="text-sm font-medium text-slate-700">{t("total")}</span>
+                        <span className="text-xl font-semibold tabular-nums text-slate-900">
+                            {formatCurrency(displayData.new_total_price)}
+                            <span className="ml-1 text-xs font-medium text-slate-400">{unit}</span>
+                        </span>
+                    </div>
+                </div>
+
+                {result && (
+                    <>
+                        <Button type="button" size="lg" variant="outline" onClick={handlePrint} className="w-full">
+                            <FileDown />
+                            {t("download_pdf")}
+                        </Button>
+                        <div className="hidden">
+                            <ReportTemplate
+                                ref={componentRef}
+                                data={displayData}
+                                apartmentNumber={foundApartment?.number?.toString() || ""}
+                                imgUrl={complexLogoUrl ?? undefined}
+                                priceUnit={buildingUnitPrice}
+                                layoutImageUrl={layoutImageUrl}
+                            />
+                        </div>
+                    </>
+                )}
+            </aside>
         </div>
     );
 };

@@ -8,28 +8,21 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
 } from "@/components/ui/select";
 import type { IApartment, TApartmentStatus } from "@/types/apartment.types";
+import { APARTMENT_STATUSES, statusStyle } from "@/lib/apartment-status";
+import { cn } from "@/lib/cn";
 
 interface StatusUpdateCellProps {
     apartment: IApartment;
 }
-
-const statusClassName: Record<TApartmentStatus, string> = {
-    free: "bg-green-200 text-gray-800",
-    sold: "bg-red-200 text-gray-800",
-    booked: "bg-yellow-200 text-gray-800",
-    withdrawn: "bg-gray-300 text-gray-800",
-};
-
-const STATUS_KEYS: TApartmentStatus[] = ["free", "sold", "booked", "withdrawn"];
 
 export const StatusUpdateCell: React.FC<StatusUpdateCellProps> = ({
     apartment,
 }) => {
     const { mutate: updateStatus, isPending } = useUpdateApartment();
     const t = useTranslations("status");
+    const style = statusStyle(apartment.status);
 
     const handleStatusChange = (newStatus: string) => {
         updateStatus({
@@ -44,25 +37,32 @@ export const StatusUpdateCell: React.FC<StatusUpdateCellProps> = ({
 
     return (
         <Select
-            defaultValue={apartment.status}
+            value={apartment.status}
             onValueChange={handleStatusChange}
             disabled={isPending}
         >
             <SelectTrigger
-                className={`h-6 w-32 border-none shadow-none focus:ring-0 px-3 py-1 rounded-md text-sm font-medium ${
-                    statusClassName[apartment.status as TApartmentStatus]
-                }`}
-            >
-                {isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                ) : (
-                    <SelectValue />
+                className={cn(
+                    "h-7 w-auto gap-1.5 rounded-full border px-2.5 text-xs font-medium shadow-none hover:border-current/30 focus-visible:ring-2 data-[state=open]:ring-2 [&>svg]:size-3.5 [&>svg]:text-current [&>svg]:opacity-60",
+                    style.chip,
                 )}
+            >
+                <span className="flex items-center gap-1.5">
+                    {isPending ? (
+                        <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                        <span className={cn("size-1.5 rounded-full", style.dot)} />
+                    )}
+                    {t(apartment.status)}
+                </span>
             </SelectTrigger>
-            <SelectContent>
-                {STATUS_KEYS.map((status) => (
+            <SelectContent align="end">
+                {APARTMENT_STATUSES.map((status) => (
                     <SelectItem key={status} value={status}>
-                        {t(status)}
+                        <span className="flex items-center gap-2">
+                            <span className={cn("size-2 rounded-full", statusStyle(status).dot)} />
+                            {t(status)}
+                        </span>
                     </SelectItem>
                 ))}
             </SelectContent>

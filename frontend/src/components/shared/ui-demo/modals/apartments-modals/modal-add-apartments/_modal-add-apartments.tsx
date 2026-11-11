@@ -10,6 +10,19 @@ import {
 	DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Field } from "@/components/shared/kit/field";
+import { FormSection } from "@/components/shared/kit/form-section";
+import { Segmented } from "@/components/shared/kit/segmented";
+import { APARTMENT_STATUSES, statusStyle } from "@/lib/apartment-status";
+import { cn } from "@/lib/cn";
+import { Check, Loader2, Plus } from "lucide-react";
 import { FC, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -23,6 +36,8 @@ import type { TModalPropsAddedApartments } from "@/types/props.types";
 import type { ILayout } from "@/types/layout.types";
 import { TApartmentStatus } from "@/types/apartment.types";
 
+const NONE = "none";
+
 export const ModalAddedApartments: FC<TModalPropsAddedApartments> = ({
 	onSuccess,
 	defaultBuildingId,
@@ -32,6 +47,7 @@ export const ModalAddedApartments: FC<TModalPropsAddedApartments> = ({
 	const t = useTranslations("apartment");
 	const ts = useTranslations("status");
 	const tc = useTranslations("common");
+	const tco = useTranslations("coefficient");
 
 	const [open, setOpen] = useState(false);
 	const [selectedLayoutId, setSelectedLayoutId] = useState<number | null>(null);
@@ -104,9 +120,19 @@ export const ModalAddedApartments: FC<TModalPropsAddedApartments> = ({
 		setSelectedLayoutId(null);
 	};
 
-	const handleChange = (
-		e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-	) => {
+	const setBuilding = (value: string) => {
+		setFormData((prev) => ({
+			...prev,
+			building_id: value,
+			floor: "",
+			bct_ids: [],
+			room_count: "",
+			area: "",
+		}));
+		setSelectedLayoutId(null);
+	};
+
+	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = e.target;
 
 		if (name === "room_count" || name === "area") {
@@ -125,19 +151,6 @@ export const ModalAddedApartments: FC<TModalPropsAddedApartments> = ({
 				}
 				setFormData((prev) => ({ ...prev, floor: value }));
 			}
-			return;
-		}
-
-		if (name === "building_id") {
-			setFormData((prev) => ({
-				...prev,
-				building_id: value,
-				floor: "",
-				bct_ids: [],
-				room_count: "",
-				area: "",
-			}));
-			setSelectedLayoutId(null);
 			return;
 		}
 
@@ -203,72 +216,94 @@ export const ModalAddedApartments: FC<TModalPropsAddedApartments> = ({
 		}
 	};
 
+	const pending = createMutation.isPending;
+
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<button className="bg-[#282964] px-3 py-1 rounded-[3px] text-white text-sm hover:bg-[#1f2050] transition-colors">
+				<Button>
+					<Plus />
 					{t("add_btn")}
-				</button>
+				</Button>
 			</DialogTrigger>
 
-			<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+			<DialogContent className="max-w-2xl">
 				<DialogHeader>
 					<DialogTitle>{t("add_title")}</DialogTitle>
 				</DialogHeader>
 
-				<form
-					onSubmit={handleSubmit}
-					className="py-4 grid grid-cols-1 md:grid-cols-2 gap-5"
-				>
-					{!defaultBuildingId && (
-						<div className="space-y-2">
-							<label className="text-sm font-medium">{t("building_label")}</label>
-							<select
-								name="building_id"
-								value={formData.building_id}
+				<form onSubmit={handleSubmit} className="flex flex-col gap-5">
+					<FormSection title={t("section_main")}>
+						{!defaultBuildingId && (
+							<Field label={t("building_label")} required className="sm:col-span-2">
+								<Select
+									value={formData.building_id}
+									onValueChange={(v) => setBuilding(v)}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder={t("select_building")} />
+									</SelectTrigger>
+									<SelectContent>
+										{buildings.map((b) => (
+											<SelectItem key={b.id} value={String(b.id)}>
+												{b.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</Field>
+						)}
+
+						<Field label={t("number_label")} htmlFor="apt-number" required>
+							<Input
+								id="apt-number"
+								name="number"
+								value={formData.number}
 								onChange={handleChange}
 								required
-								className="w-full h-10 border rounded px-3 bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
-							>
-								<option value="">{t("select_building")}</option>
-								{buildings.map((b) => (
-									<option key={b.id} value={b.id}>
-										{b.name}
-									</option>
-								))}
-							</select>
-						</div>
-					)}
+								autoFocus
+							/>
+						</Field>
 
-					<div className="space-y-2">
-						<label className="text-sm font-medium">{t("status_label")}</label>
-						<select
-							name="status"
-							value={formData.status}
-							onChange={handleChange}
-							required
-							className="w-full h-10 border rounded px-3 bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
-						>
-							<option value="free">{ts("free")}</option>
-							<option value="sold">{ts("sold")}</option>
-							<option value="booked">{ts("booked")}</option>
-							<option value="withdrawn">{ts("withdrawn")}</option>
-						</select>
-					</div>
+						<Field label={t("floor_label")} htmlFor="apt-floor">
+							<Input
+								id="apt-floor"
+								name="floor"
+								type="number"
+								value={formData.floor}
+								onChange={handleChange}
+								placeholder={
+									selectedBuildingFloorCount
+										? t("max_floor_placeholder", { max: selectedBuildingFloorCount })
+										: t("select_building")
+								}
+								disabled={!formData.building_id}
+							/>
+						</Field>
 
-					{formData.building_id && (
-						<div className="col-span-1 md:col-span-2 space-y-2">
-							<label className="text-sm font-medium text-gray-700">
-								{t("layout_label")}{" "}
-								<span className="text-xs font-normal text-gray-400">
-									{t("layout_hint")}
-								</span>
-							</label>
-							<div className="flex flex-wrap gap-2 min-h-[36px]">
+						<Field label={t("status_label")} className="sm:col-span-2">
+							<Segmented
+								className="w-full sm:w-auto"
+								value={formData.status}
+								onChange={(v) => setFormData((prev) => ({ ...prev, status: v }))}
+								options={APARTMENT_STATUSES.map((s) => ({
+									value: s,
+									label: (
+										<span className="flex items-center gap-1.5">
+											<span className={cn("size-2 rounded-full", statusStyle(s).dot)} />
+											{ts(s)}
+										</span>
+									),
+								}))}
+							/>
+						</Field>
+					</FormSection>
+
+					<FormSection title={t("layout_label")} hint={formData.building_id ? t("layout_hint") : undefined}>
+						{formData.building_id && (
+							<div className="flex flex-wrap gap-1.5 sm:col-span-2">
 								{layouts.length === 0 ? (
-									<span className="text-xs text-gray-400 italic self-center">
-										{t("layout_empty")}
-									</span>
+									<span className="text-xs text-slate-400">{t("layout_empty")}</span>
 								) : (
 									layouts.map((layout) => {
 										const isActive = selectedLayoutId === layout.id;
@@ -277,125 +312,98 @@ export const ModalAddedApartments: FC<TModalPropsAddedApartments> = ({
 												key={layout.id}
 												type="button"
 												onClick={() =>
-													isActive
-														? handleDeselectLayout()
-														: handleSelectLayout(layout)
+													isActive ? handleDeselectLayout() : handleSelectLayout(layout)
 												}
-												className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+												className={cn(
+													"inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
 													isActive
-														? "bg-indigo-900 text-white border-indigo-900"
-														: "bg-white text-gray-700 border-gray-300 hover:border-indigo-400 hover:text-indigo-700"
-												}`}
+														? "border-primary bg-primary text-white"
+														: "border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-ink",
+												)}
 											>
-												{layout.name ||
-													`${layout.room_count}-комн. ${layout.area}м²`}
+												{isActive && <Check size={13} />}
+												{layout.name || `${layout.room_count}-комн. ${layout.area}м²`}
 											</button>
 										);
 									})
 								)}
 							</div>
-						</div>
+						)}
+
+						<Field label={t("rooms_label")} htmlFor="apt-rooms" required>
+							<Input
+								id="apt-rooms"
+								name="room_count"
+								type="number"
+								value={formData.room_count}
+								onChange={handleChange}
+								required
+								placeholder={t("select_layout_hint")}
+							/>
+						</Field>
+
+						<Field label={t("area_label")} htmlFor="apt-area" required>
+							<Input
+								id="apt-area"
+								name="area"
+								inputMode="decimal"
+								value={formData.area}
+								onChange={handleChange}
+								required
+								placeholder={t("select_layout_hint")}
+							/>
+						</Field>
+					</FormSection>
+
+					{coefficientGroups.length > 0 && (
+						<FormSection title={tco("section_title")}>
+							{coefficientGroups.map((group) => {
+								const current = formData.bct_ids.find((id) =>
+									group.bcts.some((b) => b.id === id),
+								);
+								return (
+									<Field key={group.id} label={group.name}>
+										<Select
+											value={current ? String(current) : NONE}
+											disabled={isLoadingCoefficientGroups}
+											onValueChange={(v) => {
+												const value = v === NONE ? 0 : Number(v);
+												setFormData((prev) => {
+													const filtered = prev.bct_ids.filter(
+														(id) => !group.bcts.some((b) => b.id === id),
+													);
+													return {
+														...prev,
+														bct_ids: value ? [...filtered, value] : filtered,
+													};
+												});
+											}}
+										>
+											<SelectTrigger>
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value={NONE}>{t("coef_not_selected")}</SelectItem>
+												{group.bcts.map((bct) => (
+													<SelectItem key={bct.id} value={String(bct.id)}>
+														{bct.name} · {bct.rate}%
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</Field>
+								);
+							})}
+						</FormSection>
 					)}
 
-					<div className="space-y-2">
-						<label className="text-sm font-medium">{t("number_label")}</label>
-						<Input
-							name="number"
-							value={formData.number}
-							onChange={handleChange}
-							required
-						/>
-					</div>
-
-					<div className="space-y-2">
-						<label className="text-sm font-medium">{t("floor_label")}</label>
-						<Input
-							name="floor"
-							type="number"
-							value={formData.floor}
-							onChange={handleChange}
-							placeholder={
-								selectedBuildingFloorCount
-									? t("max_floor_placeholder", { max: selectedBuildingFloorCount })
-									: t("select_building")
-							}
-							disabled={!formData.building_id}
-						/>
-					</div>
-
-					<div className="space-y-2">
-						<label className="text-sm font-medium">{t("rooms_label")}</label>
-						<Input
-							name="room_count"
-							type="number"
-							value={formData.room_count}
-							onChange={handleChange}
-							required
-							placeholder={t("select_layout_hint")}
-						/>
-					</div>
-
-					<div className="space-y-2">
-						<label className="text-sm font-medium">{t("area_label")}</label>
-						<Input
-							name="area"
-							value={formData.area}
-							onChange={handleChange}
-							required
-							placeholder={t("select_layout_hint")}
-						/>
-					</div>
-
-					<div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-						{coefficientGroups.map((group) => (
-							<div key={group.id} className="space-y-2">
-								<label className="text-sm font-medium">{t("coef_type_label")}: {group.name}</label>
-								<select
-									value={
-										formData.bct_ids.find((id) =>
-											group.bcts.some((b) => b.id === id),
-										) ?? ""
-									}
-									onChange={(e) => {
-										const value = Number(e.target.value);
-										setFormData((prev) => {
-											const filtered = prev.bct_ids.filter(
-												(id) => !group.bcts.some((b) => b.id === id),
-											);
-											return {
-												...prev,
-												bct_ids: value ? [...filtered, value] : filtered,
-											};
-										});
-									}}
-									className="w-full h-10 border rounded px-3 bg-white disabled:opacity-50"
-									disabled={isLoadingCoefficientGroups}
-								>
-									<option value="">{t("coef_not_selected")}</option>
-									{group.bcts.map((bct) => (
-										<option key={bct.id} value={bct.id}>
-											{bct.name} ({bct.rate})
-										</option>
-									))}
-								</select>
-							</div>
-						))}
-					</div>
-
-					<DialogFooter className="col-span-1 md:col-span-2 flex gap-3">
-						<Button
-							variant="outline"
-							type="button"
-							onClick={() => setOpen(false)}
-						>
+					<DialogFooter className="border-t border-slate-200/70 pt-4">
+						<Button variant="outline" type="button" onClick={() => setOpen(false)} disabled={pending}>
 							{tc("cancel")}
 						</Button>
-						<Button
-							type="submit"
-							className="bg-[#282964] text-white hover:bg-[#1f2050]"
-							disabled={createMutation.isPending}
-						>
-							{createMutation.isPending ? tc("adding") : tc("add")}
+						<Button type="submit" disabled={pending}>
+							{pending && <Loader2 className="animate-spin" />}
+							{pending ? tc("adding") : tc("add")}
 						</Button>
 					</DialogFooter>
 				</form>

@@ -32,7 +32,6 @@ export const DebouncedInput: React.FC<DebouncedInputProps> = ({
 			{...props}
 			value={innerValue}
 			onChange={(e) => setInnerValue(e.target.value)}
-			className="bg-gradient-to-br from-indigo-100 via-indigo-50 to-indigo-100 "
 		/>
 	);
 };

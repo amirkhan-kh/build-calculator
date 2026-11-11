@@ -18,14 +18,14 @@ const SelectTrigger = React.forwardRef<
 	<SelectPrimitive.Trigger
 		ref={ref}
 		className={cn(
-			"flex h-9 w-full items-center justify-between whitespace-nowrap rounded-[3px] border border-input bg-transparent px-3 py-2 text-sm  ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 bg-gradient-to-br from-indigo-100 via-indigo-50 to-indigo-100 text-indigo-700",
+			"flex h-10 w-full items-center justify-between gap-2 whitespace-nowrap rounded-lg border border-input bg-white px-3 text-sm text-slate-900 shadow-xs transition-[border-color,box-shadow] hover:border-slate-300 focus:outline-none focus-visible:border-indigo-400 focus-visible:ring-4 focus-visible:ring-indigo-500/10 data-[state=open]:border-indigo-400 data-[state=open]:ring-4 data-[state=open]:ring-indigo-500/10 disabled:cursor-not-allowed disabled:opacity-60 data-[placeholder]:text-slate-400 [&>span]:min-w-0 [&>span]:truncate",
 			className,
 		)}
 		{...props}
 	>
 		{children}
 		<SelectPrimitive.Icon asChild>
-			<ChevronDown className="h-4 w-4 opacity-50" />
+			<ChevronDown className="size-4 shrink-0 text-slate-400" />
 		</SelectPrimitive.Icon>
 	</SelectPrimitive.Trigger>
 ));
@@ -74,7 +74,7 @@ const SelectContent = React.forwardRef<
 		<SelectPrimitive.Content
 			ref={ref}
 			className={cn(
-				"relative z-50 max-h-[--radix-select-content-available-height] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[--radix-select-content-transform-origin] bg-gradient-to-br from-indigo-100 via-indigo-50 to-indigo-100 text-indigo-700",
+				"glass-strong relative z-50 max-h-[var(--radix-select-content-available-height)] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-xl text-slate-800 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[var(--radix-select-content-transform-origin)]",
 				position === "popper" &&
 					"data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
 				className,
@@ -104,7 +104,7 @@ const SelectLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
 	<SelectPrimitive.Label
 		ref={ref}
-		className={cn("px-2 py-1.5 text-sm font-semibold", className)}
+		className={cn("px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400", className)}
 		{...props}
 	/>
 ));
@@ -117,14 +117,14 @@ const SelectItem = React.forwardRef<
 	<SelectPrimitive.Item
 		ref={ref}
 		className={cn(
-			"relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 ",
+			"relative flex w-full cursor-pointer select-none items-center rounded-lg py-2 pl-2.5 pr-8 text-sm outline-none transition-colors focus:bg-slate-100 focus:text-slate-900 data-[state=checked]:font-medium data-[state=checked]:text-ink data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
 			className,
 		)}
 		{...props}
 	>
 		<span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
 			<SelectPrimitive.ItemIndicator>
-				<Check className="h-4 w-4" />
+				<Check className="size-4 text-brand" />
 			</SelectPrimitive.ItemIndicator>
 		</span>
 		<SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>

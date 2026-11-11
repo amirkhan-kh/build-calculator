@@ -1,14 +1,27 @@
 import { Route } from "next";
-import { FaBuilding, FaCalculator, FaUsers } from "react-icons/fa";
+import { Briefcase, Building2, Calculator, Users, type LucideIcon } from "lucide-react";
+
+export type NavKey = "objects" | "calculator" | "management" | "firms";
 
 interface INavigation {
-	navKey: "objects" | "calculator" | "management";
-	icon: React.ComponentType<{ size?: string | number }>;
+	navKey: NavKey;
+	icon: LucideIcon;
 	pathName: Route;
 }
 
 export const navigation: INavigation[] = [
-	{ navKey: "objects", icon: FaBuilding, pathName: "/" },
-	{ navKey: "calculator", icon: FaCalculator, pathName: "/calculator-system" },
-	{ navKey: "management", icon: FaUsers, pathName: "/management" },
-] as const;
+	{ navKey: "objects", icon: Building2, pathName: "/" },
+	{ navKey: "calculator", icon: Calculator, pathName: "/calculator-system" },
+	{ navKey: "management", icon: Users, pathName: "/management" },
+];
+
+export const platformNavigation: INavigation[] = [
+	{ navKey: "firms", icon: Briefcase, pathName: "/" },
+];
+
+const OBJECT_ROUTES = /^\/(complex|buildings|apartments)(\/|$)/;
+
+export function isNavActive(pathName: string, pathname: string) {
+	if (pathName === "/") return pathname === "/" || OBJECT_ROUTES.test(pathname);
+	return pathname === pathName || pathname.startsWith(`${pathName}/`);
+}

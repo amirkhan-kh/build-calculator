@@ -1,8 +1,6 @@
 from fastapi import UploadFile
 from sqlalchemy import select
 
-from sqlalchemy import select
-
 from apartments.models import Apartment
 from buildings.models import Building
 from coefficients.models import BuildingCoefficientType
@@ -24,7 +22,7 @@ class ApartmentRepository(BaseRepository):
             if filters is not None:
                 stmt = filters.filter(stmt)
             if page:
-                stmt = stmt.limit(page["limit"]).offset(page["offset"])
+                stmt = stmt.order_by(Apartment.id).limit(page["limit"]).offset(page["offset"])
             query = await self.db.execute(stmt)
             response = query.scalars().all()
         for apartment in response:

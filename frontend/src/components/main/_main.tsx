@@ -6,9 +6,9 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 	return (
-		<div className="mx-auto w-full max-w-[1400px] px-4 min-h-screen">
+		<main className="mx-auto w-full max-w-[1680px] px-3 pb-12 pt-5 sm:px-6">
 			{children}
-		</div>
+		</main>
 	);
 };
 

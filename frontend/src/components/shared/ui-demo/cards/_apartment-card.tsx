@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { TbExternalLink } from "react-icons/tb";
+import { ArrowUpRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { StatusUpdateCell } from "../patch-status/_status-pach";
 import { ModalDeleteApartments } from "../modals/apartments-modals/modal-delete-apartments/_modal-delete-apartment";
 import type { IApartment } from "@/types/apartment.types";
+import { formatNumber } from "@/lib/format";
+import { statusStyle } from "@/lib/apartment-status";
+import { cn } from "@/lib/cn";
 
 interface ApartmentCardProps {
     apartment: IApartment;
@@ -16,76 +19,57 @@ export function ApartmentCard({ apartment, onSuccess }: ApartmentCardProps) {
     const t = useTranslations("apartment");
     const tf = useTranslations("filter");
 
-    return (
-        <div className="group relative flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:shadow-lg hover:border-indigo-100 overflow-hidden">
-            <div className={`h-0.5 w-full ${
-                apartment.status === "free"      ? "bg-green-400" :
-                apartment.status === "sold"      ? "bg-red-400" :
-                apartment.status === "booked"    ? "bg-yellow-400" :
-                "bg-gray-300"
-            }`} />
+    const specs = [
+        { label: tf("floor_label"), value: apartment.floor },
+        { label: tf("rooms_label"), value: apartment.room_count },
+        { label: "м²", value: formatNumber(apartment.area) },
+    ];
 
-            <div className="p-4 flex flex-col flex-1">
-                <div className="flex items-start justify-between gap-2 mb-3">
-                    <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+    return (
+        <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/70 bg-white/80 shadow-xs backdrop-blur-sm transition-all duration-200 hover:border-indigo-100 hover:bg-white hover:shadow-[0_12px_32px_-16px_rgb(30_33_80/0.25)]">
+            <span className={cn("absolute inset-y-0 left-0 w-[3px]", statusStyle(apartment.status).bar)} />
+
+            <div className="flex flex-1 flex-col p-4 pl-5">
+                <div className="flex items-start justify-between gap-2">
+                    <Link href={`/apartments/${apartment.id}`} className="min-w-0">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
                             {t("title")}
                         </p>
-                        <h3 className="text-lg font-black text-gray-900 leading-tight">
+                        <h3 className="text-lg font-semibold leading-tight tracking-tight text-slate-900 hover:text-ink">
                             №{apartment.number}
                         </h3>
-                    </div>
+                    </Link>
                     <StatusUpdateCell apartment={apartment} />
                 </div>
 
-                <div className="grid grid-cols-3 gap-1.5 mb-3">
-                    <div className="rounded-xl bg-gray-50 px-2 py-2 text-center">
-                        <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">
-                            {tf("floor_label")}
-                        </p>
-                        <p className="mt-0.5 text-sm font-black text-gray-800">
-                            {apartment.floor}
-                        </p>
-                    </div>
-                    <div className="rounded-xl bg-gray-50 px-2 py-2 text-center">
-                        <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">
-                            {tf("rooms_label")}
-                        </p>
-                        <p className="mt-0.5 text-sm font-black text-gray-800">
-                            {apartment.room_count}
-                        </p>
-                    </div>
-                    <div className="rounded-xl bg-gray-50 px-2 py-2 text-center">
-                        <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">
-                            м²
-                        </p>
-                        <p className="mt-0.5 text-sm font-black text-gray-800">
-                            {apartment.area}
-                        </p>
-                    </div>
-                </div>
+                <dl className="mt-3 flex items-center gap-4 text-[13px]">
+                    {specs.map((s) => (
+                        <div key={s.label} className="flex items-baseline gap-1">
+                            <dd className="font-semibold tabular-nums text-slate-800">{s.value}</dd>
+                            <dt className="text-xs text-slate-400">{s.label}</dt>
+                        </div>
+                    ))}
+                </dl>
 
-                <div className="flex items-center justify-between border-t border-gray-50 pt-3 mt-auto">
-                    <div>
-                        <p className="text-sm font-black text-indigo-600">
-                            {Number(apartment.total_price).toLocaleString()}{" "}
-                            <span className="text-[10px] font-medium">{apartment.price_unit}</span>
+                <div className="mt-3 flex items-end justify-between gap-2 border-t border-slate-100 pt-3">
+                    <div className="min-w-0">
+                        <p className="truncate text-[15px] font-semibold tabular-nums text-slate-900">
+                            {formatNumber(apartment.total_price)}
+                            <span className="ml-1 text-[11px] font-medium text-slate-400">{apartment.price_unit}</span>
                         </p>
-                        <p className="text-[10px] text-gray-400">
-                            {Number(apartment.final_price).toLocaleString()} {apartment.price_unit} / м²
+                        <p className="truncate text-[11px] tabular-nums text-slate-400">
+                            {formatNumber(apartment.final_price)} {apartment.price_unit} / м²
                         </p>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center">
                         <Link
                             href={`/apartments/${apartment.id}`}
-                            className="rounded-lg p-1.5 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                            className="grid size-8 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                            aria-label={t("title")}
                         >
-                            <TbExternalLink size={16} />
+                            <ArrowUpRight size={16} />
                         </Link>
-                        <ModalDeleteApartments
-                            apartmentId={apartment.id}
-                            onSuccess={onSuccess}
-                        />
+                        <ModalDeleteApartments apartmentId={apartment.id} onSuccess={onSuccess} />
                     </div>
                 </div>
             </div>

@@ -3,6 +3,7 @@
 import {
 	Dialog,
 	DialogContent,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
@@ -12,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { useUpdateBuilding } from "@/action/hooks/buildings-hook/update-building";
 import type { ModalUpdateBuildingsProps } from "@/types/props.types";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Pencil } from "lucide-react";
+import { Field } from "@/components/shared/kit/field";
 import { useTranslations } from "next-intl";
 
 export function ModalUpdateBuildings({
@@ -57,88 +59,73 @@ export function ModalUpdateBuildings({
 		}
 	};
 
+	const handleOpenChange = (next: boolean) => {
+		setOpen(next);
+		if (next) {
+			setName(building.name || "");
+			setFloorCount(Number(building.floor_count) || 0);
+			setMaxCoefficient(Number(building.max_coefficient) || "");
+			setBasePrice(Number(building.base_price) || 0);
+		}
+	};
+
 	return (
-		<Dialog open={open} onOpenChange={setOpen}>
+		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
-				<button className="bg-gradient-to-br from-indigo-100 to-white px-2 py-1 rounded-[3px] leading-5 text-indigo-900 border border-indigo-200 hover:shadow-sm">
+				<Button variant="outline" size="sm">
+					<Pencil />
 					{tc("change")}
-				</button>
+				</Button>
 			</DialogTrigger>
-			<DialogContent className="sm:max-w-md overflow-y-auto max-h-[90vh]">
+			<DialogContent className="max-w-md">
 				<DialogHeader>
-					<DialogTitle className="text-lg font-semibold text-center">
-						{t("update_title")}
-					</DialogTitle>
+					<DialogTitle>{t("update_title")}</DialogTitle>
 				</DialogHeader>
 
-				<form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-2">
-					<label className="text-sm font-medium">
-						{t("name_field")}
+				<form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+					<Field label={t("name_field")} htmlFor="b-name" className="col-span-2">
+						<Input id="b-name" value={name} onChange={(e) => setName(e.target.value)} />
+					</Field>
+
+					<Field label={t("floors_field")} htmlFor="b-floors">
 						<Input
-							value={name}
-							onChange={(e) => setName(e.target.value)}
-							className="mt-1"
+							id="b-floors"
+							type="number"
+							value={floorCount}
+							onChange={(e) => setFloorCount(Number(e.target.value))}
 						/>
-					</label>
-
-					<div className="grid grid-cols-2 gap-4">
-						<label className="text-sm font-medium">
-							{t("floors_field")}
-							<Input
-								type="number"
-								value={floorCount}
-								onChange={(e) => setFloorCount(Number(e.target.value))}
-								className="mt-1"
-							/>
-						</label>
-						<label className="text-sm font-medium">
-							{t("max_coef_field")}
-							<Input
-								type="number"
-								value={maxCoefficient}
-								step={0.01}
-								onChange={(e) =>
-									setMaxCoefficient(
-										e.target.value === "" ? "" : Number(e.target.value),
-									)
-								}
-								className="mt-1"
-							/>
-						</label>
-					</div>
-
-					<label className="text-sm font-medium">
-						{t("base_price_field")} ({building.price_unit})
+					</Field>
+					<Field label={t("max_coef_field")} htmlFor="b-coef">
 						<Input
+							id="b-coef"
+							type="number"
+							value={maxCoefficient}
+							step={0.01}
+							onChange={(e) =>
+								setMaxCoefficient(e.target.value === "" ? "" : Number(e.target.value))
+							}
+						/>
+					</Field>
+
+					<Field label={`${t("base_price_field")}, ${building.price_unit}`} htmlFor="b-price" className="col-span-2">
+						<Input
+							id="b-price"
 							type="number"
 							value={basePrice}
 							step={0.01}
 							onChange={(e) => setBasePrice(Number(e.target.value))}
-							className="mt-1"
 						/>
-					</label>
+					</Field>
 
-					<div className="flex justify-end gap-3 mt-4">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => setOpen(false)}
-							className="min-w-24"
-						>
+					<DialogFooter className="col-span-2 pt-2">
+						<Button type="button" variant="outline" onClick={() => setOpen(false)}>
 							{tc("cancel")}
 						</Button>
-						<Button
-							type="submit"
-							disabled={updateMutation.isPending}
-							className="bg-indigo-800 hover:bg-indigo-700 min-w-24"
-						>
-							{updateMutation.isPending ? (
-								<Loader2 className="animate-spin h-4 w-4" />
-							) : (
-								tc("save")
-							)}
+						<Button type="submit" disabled={updateMutation.isPending}>
+							{updateMutation.isPending && <Loader2 className="animate-spin" />}
+							{updateMutation.isPending ? tc("saving") : tc("save")}
 						</Button>
-					</div>
+					</DialogFooter>
 				</form>
 			</DialogContent>
 		</Dialog>

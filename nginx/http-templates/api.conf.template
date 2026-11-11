@@ -26,6 +26,8 @@ server {
 
     # MinIO'dagi ochiq fayllar: /media/<bucket>/<key>
     location /media/ {
+        # Vercel rewrite fayl nomi oxiriga "/" qo'shishi mumkin
+        rewrite ^/media/(.+)/$ /media/$1 last;
         proxy_pass http://minio:9000/;
         proxy_set_header Host minio:9000;
         proxy_hide_header Set-Cookie;

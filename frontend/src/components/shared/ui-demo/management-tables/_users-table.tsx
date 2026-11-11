@@ -16,16 +16,26 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useUsers } from "@/action/hooks/users-hook/users-get.hook";
 import { useRoles } from "@/action/hooks/roles-hook/use-roles";
 import { usePatchUser } from "@/action/hooks/users-hook/user-patch.hook";
-import { Badge } from "@/components/ui/badge";
 import DeleteUserManagement from "../modals/user-modal-management/delete-user-modal/_delete-user-modal";
 import PatchUserManagement from "../modals/user-modal-management/patch-user-modal/_patch-user-modal";
 import CreateUserManagement from "../modals/user-modal-management/create-user-modal/_create-user-management";
 import { useAuthMe } from "@/action/hooks/login-hook/use-auth-me";
+import { EmptyState, LoadingState } from "@/components/shared/kit/empty-state";
+import { cn } from "@/lib/cn";
+
+function initials(name: string) {
+	return name
+		.split(/\s+/)
+		.filter(Boolean)
+		.slice(0, 2)
+		.map((p) => p[0]?.toUpperCase())
+		.join("");
+}
 
 const UsersTableOfManagement: React.FC = () => {
 	const { data: users, isLoading: usersLoading } = useUsers();
@@ -35,96 +45,96 @@ const UsersTableOfManagement: React.FC = () => {
 	const t = useTranslations("management");
 
 	const currentUsername = currentUserData?.data?.username;
-	if (usersLoading) return <Loader2 className="animate-spin m-10" />;
 
 	return (
-		<Table>
-			<TableHeader>
-				<TableRow>
-					<TableHead className="w-20">{t("number_col")}</TableHead>
-					<TableHead>{t("username_col")}</TableHead>
-					<TableHead>{t("current_role_col")}</TableHead>
-					<TableHead className="text-right">{t("assign_role_col")}</TableHead>
-					<TableHead className="flex justify-end py-2">
-						<CreateUserManagement />
-					</TableHead>
-				</TableRow>
-			</TableHeader>
-			<TableBody>
-				{users?.map((user, i) => {
-					const isMe = user.username === currentUsername;
+		<div className="flex flex-col gap-3">
+			<div className="flex items-center justify-between gap-3">
+				<p className="text-sm text-slate-500">{t("users_count", { count: users?.length ?? 0 })}</p>
+				<CreateUserManagement />
+			</div>
 
-					return (
-						<TableRow key={user.id} className={isMe ? "bg-gray-50/50" : ""}>
-							<TableCell className={isMe ? "opacity-50" : ""}>
-								{i + 1}
-							</TableCell>
-							<TableCell
-								className={`font-medium ${isMe ? "text-[#282964] disabled:cursor-not-allowed disabled:opacity-50" : ""}`}
-							>
-								{user.username}{" "}
-								{isMe && (
-									<span className="text-[10px] ml-1 font-normal text-gray-400">
-										({t("you_label")})
-									</span>
-								)}
-							</TableCell>
-							<TableCell>
-								{user.role_id ? (
-									<Badge variant="outline">
-										{roles?.find((r) => r.id === user.role_id)?.name ||
-											t("role_placeholder")}
-									</Badge>
-								) : (
-									<Badge variant="destructive">{t("no_role")}</Badge>
-								)}
-							</TableCell>
-							<TableCell className="text-right">
-								<Select
-									disabled={isUpdating || isMe}
-									defaultValue={user.role_id?.toString()}
-									onValueChange={(value) =>
-										updateUser({
-											id: user.id,
-											data: { role_id: Number(value) },
-										})
-									}
-								>
-									<SelectTrigger
-										className={`w-48 ml-auto ${isMe ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
-									>
-										<SelectValue placeholder={t("select_role")} />
-									</SelectTrigger>
-									<SelectContent>
-										{roles?.map((role) => (
-											<SelectItem key={role.id} value={role.id.toString()}>
-												{role.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</TableCell>
-							<TableCell className="text-right">
-								<div
-									className={`flex justify-end gap-2 ${
-										isMe
-											? "opacity-40 grayscale pointer-events-none cursor-not-allowed"
-											: ""
-									}`}
-									title={isMe ? t("self_edit_warning") : ""}
-								>
-									<PatchUserManagement user={user} />
-									<DeleteUserManagement
-										userId={user.id}
-										username={user.username}
-									/>
-								</div>
-							</TableCell>
+			{usersLoading ? (
+				<LoadingState />
+			) : !users || users.length === 0 ? (
+				<EmptyState icon={Users} title={t("no_users")} />
+			) : (
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead className="w-12">{t("number_col")}</TableHead>
+							<TableHead>{t("username_col")}</TableHead>
+							<TableHead className="hidden md:table-cell">{t("phone_label")}</TableHead>
+							<TableHead className="w-60">{t("role_label")}</TableHead>
+							<TableHead className="w-24" />
 						</TableRow>
-					);
-				})}
-			</TableBody>
-		</Table>
+					</TableHeader>
+					<TableBody>
+						{users.map((user, i) => {
+							const isMe = user.username === currentUsername;
+							const display = user.fullname || user.username;
+							return (
+								<TableRow key={user.id} className={cn(isMe && "bg-indigo-50/40")}>
+									<TableCell className="tabular-nums text-slate-400">{i + 1}</TableCell>
+									<TableCell>
+										<div className="flex items-center gap-3">
+											<span className="grid size-9 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
+												{initials(display)}
+											</span>
+											<div className="min-w-0">
+												<p className="flex items-center gap-2 truncate font-medium text-slate-900">
+													{display}
+													{isMe && (
+														<span className="rounded-full bg-ink px-2 py-px text-[10px] font-medium text-white">
+															{t("you_label")}
+														</span>
+													)}
+												</p>
+												<p className="truncate text-xs text-slate-500">@{user.username}</p>
+											</div>
+										</div>
+									</TableCell>
+									<TableCell className="hidden tabular-nums text-slate-600 md:table-cell">
+										{user.phone || "—"}
+									</TableCell>
+									<TableCell>
+										<Select
+											disabled={isUpdating || isMe}
+											value={user.role_id ? user.role_id.toString() : undefined}
+											onValueChange={(value) =>
+												updateUser({ id: user.id, data: { role_id: Number(value) } })
+											}
+										>
+											<SelectTrigger className="h-9 w-full">
+												<SelectValue placeholder={t("no_role")} />
+											</SelectTrigger>
+											<SelectContent>
+												{roles?.map((role) => (
+													<SelectItem key={role.id} value={role.id.toString()}>
+														{role.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</TableCell>
+									<TableCell>
+										{isMe ? (
+											<span className="block text-right text-xs text-slate-400" title={t("self_edit_warning")}>
+												—
+											</span>
+										) : (
+											<div className="flex justify-end gap-0.5">
+												<PatchUserManagement user={user} />
+												<DeleteUserManagement userId={user.id} username={user.username} />
+											</div>
+										)}
+									</TableCell>
+								</TableRow>
+							);
+						})}
+					</TableBody>
+				</Table>
+			)}
+		</div>
 	);
 };
 

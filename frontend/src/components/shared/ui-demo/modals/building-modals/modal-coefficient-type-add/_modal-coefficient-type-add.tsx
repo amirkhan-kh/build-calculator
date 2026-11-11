@@ -3,11 +3,15 @@ import { useCreateCoefficientType } from "@/action/hooks/coefficient-type-hook/c
 import {
 	Dialog,
 	DialogContent,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/shared/kit/field";
+import { Loader2, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -29,7 +33,8 @@ export const ModalAddedCoefficientType = ({
 	const t = useTranslations("coefficient");
 	const tc = useTranslations("common");
 
-	const handleCreateCoefficientType = async () => {
+	const handleCreateCoefficientType = async (e: React.FormEvent) => {
+		e.preventDefault();
 		if (!typeName || rate === "") {
 			toast.error(t("fill_fields_error"));
 			return;
@@ -47,50 +52,64 @@ export const ModalAddedCoefficientType = ({
 		onSuccess?.();
 	};
 
+	const pending = createCoefficientType.isPending;
+
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<button className="bg-[#46479f] px-3 py-1 rounded text-white text-sm">
+				<Button variant="outline" size="sm">
+					<Plus />
 					{t("type_create_btn")}
-				</button>
+				</Button>
 			</DialogTrigger>
-			<DialogContent>
+			<DialogContent className="max-w-sm">
 				<DialogHeader>
 					<DialogTitle>{t("type_create_title")}</DialogTitle>
 				</DialogHeader>
 
-				<div className="space-y-4">
-					<Input
-						value={typeName}
-						onChange={(e) => setTypeName(e.target.value)}
-						placeholder={t("type_name_placeholder")}
-					/>
-					<Input
-						type="number"
-						value={rate}
-						min={0}
-						max={100}
-						step={1}
-						placeholder={t("type_rate_placeholder")}
-						className="bg-white"
-						onChange={(e) => {
-							const raw = e.target.value;
-							if (raw === "") {
-								setRate("");
-								return;
-							}
-							const value = Number(raw);
-							if (value < 0 || value > 100) return;
-							setRate(value);
-						}}
-					/>
-					<button
-						className="bg-[#46479f] text-white px-4 py-1 rounded"
-						onClick={handleCreateCoefficientType}
-					>
-						{tc("create")}
-					</button>
-				</div>
+				<form onSubmit={handleCreateCoefficientType} className="flex flex-col gap-4">
+					<Field label={t("type_name_label")} htmlFor="coef-type-name" required>
+						<Input
+							id="coef-type-name"
+							value={typeName}
+							onChange={(e) => setTypeName(e.target.value)}
+							placeholder={t("type_name_placeholder")}
+							disabled={pending}
+							autoFocus
+						/>
+					</Field>
+					<Field label={t("type_rate_label")} htmlFor="coef-type-rate" required>
+						<Input
+							id="coef-type-rate"
+							type="number"
+							value={rate}
+							min={0}
+							max={100}
+							step={1}
+							placeholder="0–100"
+							disabled={pending}
+							onChange={(e) => {
+								const raw = e.target.value;
+								if (raw === "") {
+									setRate("");
+									return;
+								}
+								const value = Number(raw);
+								if (value < 0 || value > 100) return;
+								setRate(value);
+							}}
+						/>
+					</Field>
+					<DialogFooter className="pt-1">
+						<Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={pending}>
+							{tc("cancel")}
+						</Button>
+						<Button type="submit" disabled={pending || !typeName.trim() || rate === ""}>
+							{pending && <Loader2 className="animate-spin" />}
+							{tc("create")}
+						</Button>
+					</DialogFooter>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);

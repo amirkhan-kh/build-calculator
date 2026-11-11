@@ -6,11 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from core.routers import routers
 from core.config import origin_regex, origins
+from core.middlewares import TrailingSlashMiddleware
 
 from lifespan import lifespan
 
 app = FastAPI(lifespan=lifespan)
 
+app.add_middleware(TrailingSlashMiddleware, router=app.router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

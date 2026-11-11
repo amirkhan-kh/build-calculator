@@ -3,14 +3,16 @@
 import {
 	Dialog,
 	DialogContent,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useEffect, useState } from "react";
-import { MdEdit } from "react-icons/md";
+import { useState } from "react";
+import { Loader2, Pencil } from "lucide-react";
+import { Field } from "@/components/shared/kit/field";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUpdateCoefficientType } from "@/action/hooks/coefficient-type-hook/update-coefficient-type";
@@ -33,13 +35,6 @@ export function ModalaUpdateCoefficientTypeApartment({
 	);
 	const t = useTranslations("coefficient");
 	const tc = useTranslations("common");
-
-	useEffect(() => {
-		if (open) {
-			setName(coefficientType.name);
-			setRate(String(coefficientType.rate));
-		}
-	}, [open, coefficientType]);
 
 	const router = useRouter();
 	const handleSubmit = () => {
@@ -67,10 +62,23 @@ export function ModalaUpdateCoefficientTypeApartment({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={setOpen}>
+		<Dialog
+			open={open}
+			onOpenChange={(next) => {
+				if (next) {
+					setName(coefficientType.name);
+					setRate(String(coefficientType.rate));
+				}
+				setOpen(next);
+			}}
+		>
 			<DialogTrigger asChild>
-				<button className="px-3 py-1 flex gap-1.5 items-center bg-gradient-to-r from-indigo-50/20 to-white border border-indigo-200 rounded-sm text-sm font-medium text-indigo-700">
-					<MdEdit size={16} />
+				<button
+					type="button"
+					className="grid size-8 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+					aria-label={tc("edit")}
+				>
+					<Pencil size={15} />
 				</button>
 			</DialogTrigger>
 
@@ -79,30 +87,35 @@ export function ModalaUpdateCoefficientTypeApartment({
 					<DialogTitle>{t("edit_title")}</DialogTitle>
 				</DialogHeader>
 
-				<div className="space-y-4">
-					<Input
-						value={name}
-						onChange={(e) => setName(e.target.value)}
-						placeholder={t("field_name")}
-						disabled={isPending}
-					/>
-
-					<Input
-						value={rate}
-						onChange={(e) => setRate(e.target.value)}
-						placeholder={t("field_value")}
-						disabled={isPending}
-					/>
-
-					<div className="flex justify-end gap-2">
-						<Button variant="outline" onClick={() => setOpen(false)}>
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						handleSubmit();
+					}}
+					className="flex flex-col gap-4"
+				>
+					<Field label={t("field_name")} htmlFor="ucta-name" required>
+						<Input id="ucta-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isPending} />
+					</Field>
+					<Field label={t("field_value")} htmlFor="ucta-rate" required>
+						<Input
+							id="ucta-rate"
+							inputMode="decimal"
+							value={rate}
+							onChange={(e) => setRate(e.target.value)}
+							disabled={isPending}
+						/>
+					</Field>
+					<DialogFooter className="pt-1">
+						<Button type="button" variant="outline" onClick={() => setOpen(false)}>
 							{tc("cancel")}
 						</Button>
-						<Button onClick={handleSubmit} disabled={isPending}>
+						<Button type="submit" disabled={isPending}>
+							{isPending && <Loader2 className="animate-spin" />}
 							{tc("save")}
 						</Button>
-					</div>
-				</div>
+					</DialogFooter>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);

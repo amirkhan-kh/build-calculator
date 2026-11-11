@@ -2,18 +2,21 @@
 import {
 	Dialog,
 	DialogContent,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { useState } from "react";
 import { toast } from "sonner";
-import { MdEdit } from "react-icons/md";
+import { Loader2, Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field } from "@/components/shared/kit/field";
 import { useTranslations } from "next-intl";
 import { useUpdateApartment } from "@/action/hooks/apartments-hook/update-apartment.hook";
 import type { ApartmentFormData, IApartment } from "@/types/apartment.types";
 import type { PropsModalUpdateApartments } from "@/types/props.types";
-import { StatusUpdateCell } from "../../../patch-status/_status-pach";
 
 interface ApiError {
 	message: string;
@@ -94,102 +97,49 @@ export function ModalUpdateApartments({
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
-				<button className="px-3 py-1 flex gap-1.5 items-center bg-gradient-to-r from-indigo-50/20 to-white border border-indigo-200 rounded-sm text-sm font-medium text-indigo-700">
-					<MdEdit size={16} />
+				<Button variant="outline" size="sm">
+					<Pencil />
 					{tc("edit")}
-				</button>
+				</Button>
 			</DialogTrigger>
 			<DialogContent className="max-w-md">
 				<DialogHeader>
 					<DialogTitle>{t("edit_title", { number: apartment.number })}</DialogTitle>
 				</DialogHeader>
-				<form onSubmit={handleSubmit} className="space-y-4 pt-4">
-					<div className="grid grid-cols-2 gap-4">
-						<label className="font-light text-sm">
-							{t("number_field")}
-							<input
-								name="number"
-								value={formData.number}
-								onChange={handleChange}
-								placeholder={t("number_field")}
-								className="border p-2 rounded text-sm"
-								required
-							/>
-						</label>
+				<form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+					<Field label={t("number_field")} htmlFor="ua-number" required>
+						<Input id="ua-number" name="number" value={formData.number} onChange={handleChange} required />
+					</Field>
+					<Field label={t("floor_field")} htmlFor="ua-floor" required>
+						<Input id="ua-floor" type="number" name="floor" value={formData.floor} onChange={handleChange} required />
+					</Field>
+					<Field label={t("area_field")} htmlFor="ua-area" required>
+						<Input id="ua-area" type="number" step="0.01" name="area" value={formData.area} onChange={handleChange} required />
+					</Field>
+					<Field label={t("rooms_field")} htmlFor="ua-rooms" required>
+						<Input id="ua-rooms" type="number" name="room_count" value={formData.room_count} onChange={handleChange} required />
+					</Field>
+					<Field label={t("price_field")} htmlFor="ua-price" required className="col-span-2">
+						<Input
+							id="ua-price"
+							type="number"
+							name="final_price"
+							value={formData.final_price}
+							onChange={handleChange}
+							placeholder={t("price_placeholder")}
+							required
+						/>
+					</Field>
 
-						<label className="font-light text-sm">
-							{t("floor_field")}
-							<input
-								type="number"
-								name="floor"
-								value={formData.floor}
-								onChange={handleChange}
-								placeholder={t("floor_field")}
-								className="border p-2 rounded text-sm"
-								required
-							/>
-						</label>
-					</div>
-
-					<div className="grid grid-cols-2 gap-4">
-						<label className="font-light text-sm">
-							{t("area_field")}
-							<input
-								type="number"
-								step="0.01"
-								name="area"
-								value={formData.area}
-								onChange={handleChange}
-								placeholder={t("area_field")}
-								className="border p-2 rounded text-sm"
-								required
-							/>
-						</label>
-						<label className="font-light text-sm">
-							{t("rooms_field")}
-							<input
-								type="number"
-								name="room_count"
-								value={formData.room_count}
-								onChange={handleChange}
-								placeholder={t("rooms_field")}
-								className="border p-2 rounded text-sm"
-								required
-							/>
-						</label>
-
-						<label className="font-light text-sm">
-							{t("price_field")}
-							<input
-								type="number"
-								name="final_price"
-								value={formData.final_price}
-								onChange={handleChange}
-								placeholder={t("price_placeholder")}
-								className="border p-2 rounded text-sm"
-								required
-							/>
-						</label>
-					</div>
-					<StatusUpdateCell apartment={apartment} />
-
-					<div className="flex justify-end gap-2 pt-4">
-						<button
-							type="button"
-							onClick={() => setOpen(false)}
-							className="px-4 py-2 text-sm border rounded hover:bg-gray-50"
-						>
+					<DialogFooter className="col-span-2 pt-2">
+						<Button type="button" variant="outline" onClick={() => setOpen(false)}>
 							{tc("cancel")}
-						</button>
-
-						<button
-							type="submit"
-							disabled={updateMutation.isPending}
-							className="px-4 py-2 text-sm bg-indigo-900 text-white rounded disabled:bg-gray-400"
-						>
+						</Button>
+						<Button type="submit" disabled={updateMutation.isPending}>
+							{updateMutation.isPending && <Loader2 className="animate-spin" />}
 							{updateMutation.isPending ? tc("saving") : tc("save")}
-						</button>
-					</div>
+						</Button>
+					</DialogFooter>
 				</form>
 			</DialogContent>
 		</Dialog>

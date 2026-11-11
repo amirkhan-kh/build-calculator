@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ENV } from "@/configs/env.config";
 
 export async function GET(req: NextRequest) {
-    const from = req.nextUrl.searchParams.get("from") || "/complex";
+    const from = req.nextUrl.searchParams.get("from") || "/";
     const refreshToken = req.cookies.get("refresh_token")?.value;
 
     const loginRedirect = NextResponse.redirect(new URL("/login", req.url));

@@ -1,20 +1,17 @@
-import { PiBuildingApartmentFill } from "react-icons/pi";
-import { TfiRulerAlt2 } from "react-icons/tfi";
-import {
-	MdHomeWork,
-	MdOutlineHome,
-	MdOutlineMeetingRoom,
-} from "react-icons/md";
 import Link from "next/link";
-import { FaAngleLeft, FaKey } from "react-icons/fa";
-import { GrMoney } from "react-icons/gr";
+import { Calculator, DoorOpen, Layers3, Percent, Ruler, SearchX, Wallet } from "lucide-react";
 import { ModalDeleteApartments } from "@/components/shared/ui-demo/modals/apartments-modals/modal-delete-apartments/_modal-delete-apartment";
 import { ModalUpdateApartments } from "@/components/shared/ui-demo/modals/apartments-modals/modal-update-apartments/_modal-update-apartment";
-import { LuChartNoAxesCombined } from "react-icons/lu";
-import { getApartmentById } from "@/action/apartaments/get-apartament.api";
-import { getCoefficientTypesByBuildingId } from "@/action/coefficient-types/get-coefficient-type.api";
 import { ModalaUpdateCoefficientTypeApartment } from "@/components/shared/ui-demo/modals/apartments-modals/modal-update-coefficient-type-apartment/_modala-update-coefficient-type-apartment";
+import { StatusUpdateCell } from "@/components/shared/ui-demo/patch-status/_status-pach";
+import { EmptyState } from "@/components/shared/kit/empty-state";
+import { BackLink } from "@/components/shared/kit/back-link";
+import { getApartmentById } from "@/action/apartaments/get-apartament.api";
+import { getBuildingById } from "@/action/buildings/get-building.api";
+import { getCoefficientTypesByBuildingId } from "@/action/coefficient-types/get-coefficient-type.api";
 import { getAuthData } from "@/lib/auth.util";
+import { formatNumber } from "@/lib/format";
+import { buttonVariants } from "@/components/ui/button";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import type { Props } from "@/types/props.types";
@@ -34,240 +31,137 @@ export default async function SingleApartmentsPage({ params }: Props) {
 
 	if (!apartment || !apartment.data) {
 		return (
-			<div className="container mx-auto p-10 text-center">
-				<h1 className="text-xl font-bold text-gray-600">{t("not_found_page")}</h1>
-				<Link href="/" className="text-indigo-600 underline">
-					{tc("back_to_list")}
-				</Link>
-			</div>
+			<EmptyState
+				className="mt-10"
+				icon={SearchX}
+				title={t("not_found_page")}
+				action={
+					<Link href="/" className="text-sm font-medium text-ink hover:underline">
+						{tc("back_to_list")}
+					</Link>
+				}
+			/>
 		);
 	}
 
 	const apartmentData = apartment.data;
+	const buildingId = Number(apartmentData.building_id);
 
-	const allCoefficientTypes = await getCoefficientTypesByBuildingId(
-		Number(apartmentData.building_id),
-	);
+	const [allCoefficientTypes, buildingSafe] = await Promise.all([
+		getCoefficientTypesByBuildingId(buildingId),
+		getBuildingById(buildingId),
+	]);
+	const building = buildingSafe.data;
 
 	const apartmentCoefficients = allCoefficientTypes
 		.flatMap((group) => group.bcts || [])
 		.filter((bct) => (apartmentData.bct_ids ?? []).includes(bct.id));
 
+	const specs = [
+		{ icon: Layers3, label: tf("floor_label"), value: apartmentData.floor, sub: building ? `/ ${building.floor_count}` : undefined },
+		{ icon: DoorOpen, label: tf("rooms_label"), value: apartmentData.room_count },
+		{ icon: Ruler, label: tf("area_label"), value: formatNumber(apartmentData.area) },
+		{ icon: Wallet, label: t("price_per_sqm_short"), value: formatNumber(apartmentData.final_price), sub: apartmentData.price_unit },
+	];
+
+	const calcHref = `/calculator-system?complex=${building?.complex_id ?? ""}&building=${buildingId}&apartment=${apartmentData.id}`;
+
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center justify-between">
-				<Link href={`/buildings/${apartmentData.building_id}`}>
-					<button className="text-gray-200 hover:text-white bg-indigo-900 px-3 py-1 rounded-[3px]">
-						<FaAngleLeft />
-					</button>
-				</Link>
-				<ModalDeleteApartments
-					apartmentId={Number(apartmentData.id)}
-					buildingId={Number(apartmentData.building_id)}
-				/>
-			</div>
+		<div>
+			<BackLink href={`/buildings/${buildingId}`}>
+				{building?.name ?? t("back_to_building")}
+			</BackLink>
 
-			<div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 ">
-				<div className="col-span-2">
-					<div className="overflow-hidden rounded-sm bg-gradient-to-br from-indigo-200 via-indigo-100 to-white border border-indigo-100 shadow-[0_8px_32px_rgba(99,102,241,0.08)] mb-2">
-						<div className="p-4">
-							<div className="flex items-center justify-between mb-4">
-								<h2 className="text-xl font-bold text-indigo-600">
-									{t("main_info")}
-								</h2>
-								<div className="px-3 py-1 bg-gradient-to-r from-indigo-50 to-white border border-indigo-200 rounded-sm text-sm font-medium text-indigo-700">
-									{apartmentData.room_count} {t("rooms_suffix")}
+			<div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+				<div className="flex min-w-0 flex-col gap-5">
+					<div className="glass rounded-2xl p-5">
+						<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+							<div className="min-w-0">
+								<p className="eyebrow">{building?.name ?? t("title")}</p>
+								<div className="mt-0.5 flex flex-wrap items-center gap-3">
+									<h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+										{t("apartment_number_label")} {apartmentData.number}
+									</h1>
+									<StatusUpdateCell apartment={apartmentData} />
 								</div>
 							</div>
-
-							<div className="grid grid-cols-1 md:grid-cols-2 ">
-								<div className="space-y-3">
-									<div className="flex items-center gap-2">
-										<div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-100 to-white flex items-center justify-center">
-											<span className="text-sm text-indigo-600">
-												<MdOutlineHome />
-											</span>
-										</div>
-										<span className="text-sm font-medium text-gray-500">
-											{t("building_id_label")}
-										</span>
-									</div>
-									<div className="text-lg font-semibold text-gray-900">
-										{apartmentData.building_id}
-									</div>
-
-									<div className="group">
-										<div className="flex items-center gap-2">
-											<div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-100 to-white flex items-center justify-center">
-												<span className="text-sm text-indigo-600">
-													<FaKey />
-												</span>
-											</div>
-											<span className="text-sm font-medium text-gray-500">
-												{t("number_label")}
-											</span>
-										</div>
-										<div className="text-lg font-semibold text-gray-900">
-											{apartmentData.number}
-										</div>
-									</div>
-
-									<div className="group">
-										<div className="flex items-center gap-2">
-											<div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-100 to-white flex items-center justify-center">
-												<span className="text-sm text-indigo-600">
-													<PiBuildingApartmentFill />
-												</span>
-											</div>
-											<span className="text-sm font-medium text-gray-500">
-												{tf("floor_label")}
-											</span>
-										</div>
-										<div className="text-lg font-semibold text-gray-900">
-											{apartmentData.floor}
-											<span className="text-sm text-gray-500 ml-1">{t("floor_suffix")}</span>
-										</div>
-									</div>
-								</div>
-
-								<div className="space-y-4">
-									<div className="group">
-										<div className="flex items-center gap-2 mb-1">
-											<div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-100 to-white flex items-center justify-center">
-												<span className="text-sm text-indigo-600">
-													<TfiRulerAlt2 />
-												</span>
-											</div>
-											<span className="text-sm font-medium text-gray-500">
-												{tf("area_label")}
-											</span>
-										</div>
-										<div className="text-lg font-semibold text-gray-900">
-											{apartmentData.area} м²
-										</div>
-									</div>
-
-									<div className="group">
-										<div className="flex items-center gap-2 mb-1">
-											<div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-100 to-white flex items-center justify-center">
-												<span className="text-sm text-indigo-600">
-													<MdOutlineMeetingRoom />
-												</span>
-											</div>
-											<span className="text-sm font-medium text-gray-500">
-												{tf("rooms_label")}
-											</span>
-										</div>
-										<div className="text-lg font-semibold text-gray-900">
-											{apartmentData.room_count}
-										</div>
-									</div>
-									<div className="group">
-										<div className="flex items-center gap-2 mb-1">
-											<div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-100 to-white flex items-center justify-center">
-												<span className="text-sm text-indigo-600">
-													<GrMoney />
-												</span>
-											</div>
-											<span className="text-sm font-medium text-gray-500">
-												{tf("price")}
-											</span>
-										</div>
-										<div className="text-lg font-semibold text-gray-900">
-											{parseFloat(apartmentData.total_price).toLocaleString()}{" "}
-											<span className="text-sm font-medium text-gray-500">{apartmentData.price_unit}</span>
-										</div>
-										<div className="text-xs text-gray-400">
-											{parseFloat(apartmentData.final_price).toLocaleString()} {apartmentData.price_unit} / м²
-										</div>
-									</div>
-								</div>
-							</div>
-							<div className="flex justify-between pt-4">
-								<span></span>
+							<div className="flex shrink-0 items-center gap-1.5">
 								<ModalUpdateApartments apartment={apartmentData} />
+								<ModalDeleteApartments apartmentId={Number(apartmentData.id)} buildingId={buildingId} />
 							</div>
 						</div>
+
+						<dl className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+							{specs.map(({ icon: Icon, label, value, sub }) => (
+								<div key={label} className="rounded-xl border border-slate-200/70 bg-white/70 px-4 py-3">
+									<dt className="flex items-center gap-1.5 text-xs text-slate-500">
+										<Icon size={14} className="text-indigo-400" />
+										{label}
+									</dt>
+									<dd className="mt-1 truncate text-lg font-semibold tabular-nums text-slate-900">
+										{value}
+										{sub && <span className="ml-1 text-xs font-medium text-slate-400">{sub}</span>}
+									</dd>
+								</div>
+							))}
+						</dl>
 					</div>
 
-					{apartmentCoefficients.length > 0 && (
-						<div className="overflow-hidden rounded-sm bg-gradient-to-br from-indigo-100 to-white border border-indigo-100 p-4 mt-4">
-							<div className="flex items-center justify-between mb-4">
-								<h2 className="text-md text-indigo-600 flex items-center gap-2 font-bold">
-									<LuChartNoAxesCombined />
-									{t("active_coefficients")}
-								</h2>
-								<span className="px-3 py-1 bg-indigo-50 border border-indigo-200 rounded-sm text-sm font-medium text-indigo-700">
+					<section className="surface overflow-hidden">
+						<div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+							<h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+								<Percent size={16} className="text-indigo-400" />
+								{t("active_coefficients")}
+							</h2>
+							{apartmentCoefficients.length > 0 && (
+								<span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
 									{t("applied_count", { count: apartmentCoefficients.length })}
 								</span>
-							</div>
-
-							<div className="grid grid-cols-2 gap-4">
+							)}
+						</div>
+						{apartmentCoefficients.length === 0 ? (
+							<p className="px-5 py-8 text-center text-sm text-slate-400">{t("no_coefficients")}</p>
+						) : (
+							<ul className="divide-y divide-slate-100">
 								{apartmentCoefficients.map((bct) => (
-									<div
-										key={bct.id}
-										className="p-4 bg-white border border-indigo-100 rounded-sm shadow-sm"
-									>
-										<div className="flex flex-col">
-											<div className="flex items-center gap-2 ">
-												<div className="flex gap-3.5 items-center bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-1.5 rounded-lg border border-indigo-100">
-													<span className="text-base font-semibold text-indigo-700">
-														{bct.name}:
-													</span>
-													<span className="text-lg font-bold text-violet-700">
-														{bct.rate}%
-													</span>
-												</div>
-
-												<span className="text-[10px] bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 px-2 py-1 rounded-full border border-green-100 font-medium">
-													{t("active_badge")}
-												</span>
-											</div>
-										</div>
-										<div className="flex items-center justify-end">
-											<ModalaUpdateCoefficientTypeApartment
-												coefficientType={bct}
-												buildingId={Number(apartmentData.building_id)}
-												coefficientId={bct.coefficient_id}
-											/>
-										</div>
-									</div>
+									<li key={bct.id} className="flex items-center gap-3 px-5 py-3">
+										<span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">{bct.name}</span>
+										<span className="text-sm font-semibold tabular-nums text-slate-900">{bct.rate}%</span>
+										<ModalaUpdateCoefficientTypeApartment
+											coefficientType={bct}
+											buildingId={buildingId}
+											coefficientId={bct.coefficient_id}
+										/>
+									</li>
 								))}
-							</div>
-						</div>
-					)}
+							</ul>
+						)}
+					</section>
 				</div>
 
-				<div className="space-y-2">
-					<div className="rounded-sm px-3 py-1.5 text-indigo-600 bg-gradient-to-br from-indigo-200 to-white flex items-end justify-center gap-2.5 shadow-sm">
-						<span className="text-2xl ">
-							<MdHomeWork size={30} />
-						</span>
-						<h1 className="text-md font-bold ">
-							{t("apartment_number_label")}: {apartmentData.number}
-						</h1>
-					</div>
-
-					<div className="overflow-hidden text-indigo-600 rounded-sm bg-gradient-to-br from-indigo-100 to-white border border-indigo-100 p-4">
-						<h3 className="text-sm font-medium mb-3">{t("quick_metrics")}</h3>
-						<div className="grid grid-cols-2 gap-3">
-							<div className="text-center p-2 bg-white border border-indigo-100 rounded-lg">
-								<div className="text-xs text-gray-500">{t("total_label_short")}</div>
-								<div className="text-sm font-bold text-indigo-700">
-									{parseFloat(apartmentData.total_price).toLocaleString()}
-								</div>
-								<div className="text-[10px] text-gray-400">{apartmentData.price_unit}</div>
-							</div>
-							<div className="text-center p-2 bg-white border border-indigo-100 rounded-lg">
-								<div className="text-xs text-gray-500">{t("price_per_sqm_short")}</div>
-								<div className="text-sm font-bold text-indigo-700">
-									{parseFloat(apartmentData.final_price).toLocaleString()}
-								</div>
-								<div className="text-[10px] text-gray-400">{apartmentData.price_unit}</div>
-							</div>
+				<aside className="flex flex-col gap-4 xl:sticky xl:top-24">
+					<div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-ink via-ink-soft to-[#3b3f8f] p-6 text-white shadow-xl shadow-ink/25">
+						<div className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-indigo-400/20 blur-2xl" />
+						<p className="relative text-xs font-medium uppercase tracking-wider text-white/60">{t("price_total")}</p>
+						<p className="relative mt-3 text-3xl font-semibold tracking-tight tabular-nums">
+							{formatNumber(apartmentData.total_price)}
+						</p>
+						<p className="relative mt-1 text-xs text-white/60">{apartmentData.price_unit}</p>
+						<div className="relative mt-5 flex items-center justify-between rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm backdrop-blur-sm">
+							<span className="text-white/70">{t("price_per_sqm_short")}</span>
+							<span className="font-semibold tabular-nums">
+								{formatNumber(apartmentData.final_price)} {apartmentData.price_unit}
+							</span>
 						</div>
 					</div>
-				</div>
+					<Link
+						href={calcHref as `/calculator-system`}
+						className={buttonVariants({ size: "lg", className: "w-full" })}
+					>
+						<Calculator />
+						{t("calculate_cta")}
+					</Link>
+				</aside>
 			</div>
 		</div>
 	);

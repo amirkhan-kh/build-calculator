@@ -1,13 +1,8 @@
 "use client";
 
-import {
-	Dialog,
-	DialogContent,
-	DialogTrigger,
-	DialogTitle,
-} from "@/components/ui/dialog";
+import { Trash2 } from "lucide-react";
+import { ConfirmDialog, deleteTriggerClass } from "@/components/shared/kit/confirm-dialog";
 import { useState } from "react";
-import { MdOutlineDeleteForever } from "react-icons/md";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -52,46 +47,22 @@ export function ModalDeleteBuildings({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={setOpen}>
-			<DialogTrigger asChild>
+		<ConfirmDialog
+			open={open}
+			onOpenChange={setOpen}
+			title={t("delete_title")}
+			description={t("delete_confirm")}
+			onConfirm={handleDelete}
+			pending={deleteMutation.isPending}
+			trigger={
 				<button
-					className="bg-gradient-to-br from-indigo-100 to-white hover:bg-gray-200 px-2 py-1 rounded-[3px] transition-colors"
-					disabled={deleteMutation.isPending}
+					type="button"
+					className={deleteTriggerClass}
+					aria-label={tc("delete")}
 				>
-					<MdOutlineDeleteForever
-						size={20}
-						className={`${deleteMutation.isPending ? "text-gray-400" : "text-gray-600"}`}
-					/>
+					<Trash2 size={16} />
 				</button>
-			</DialogTrigger>
-			<DialogContent className="sm:max-w-md">
-				<DialogTitle className="text-lg font-semibold text-center">
-					{t("delete_title")}
-				</DialogTitle>
-
-				<div className="py-4">
-					<p className="text-center text-gray-600 mb-6">
-						{t("delete_confirm")}
-					</p>
-
-					<div className="flex justify-center gap-4">
-						<button
-							onClick={() => setOpen(false)}
-							className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors min-w-[80px]"
-							disabled={deleteMutation.isPending}
-						>
-							{tc("no")}
-						</button>
-						<button
-							onClick={handleDelete}
-							disabled={deleteMutation.isPending}
-							className="px-4 py-2 bg-red-300 text-white rounded hover:bg-red-400 transition-colors disabled:opacity-50 min-w-[80px]"
-						>
-							{deleteMutation.isPending ? tc("deleting") : tc("yes")}
-						</button>
-					</div>
-				</div>
-			</DialogContent>
-		</Dialog>
+			}
+		/>
 	);
 }

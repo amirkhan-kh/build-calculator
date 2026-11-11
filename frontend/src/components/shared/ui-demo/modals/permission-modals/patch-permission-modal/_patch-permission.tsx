@@ -1,43 +1,39 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
 	Dialog,
 	DialogContent,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-	DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2 } from "lucide-react";
+import { Loader2, Pencil } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { IPermission } from "@/types/permissions.types";
 import { usePatchPermission } from "@/action/hooks/permissions-hook/use-patch-permission-hook";
-import { FiEdit3 } from "react-icons/fi";
+import { Field } from "@/components/shared/kit/field";
 
 interface Props {
 	permission: IPermission;
 }
 
 const PatchPermissionManagement: React.FC<Props> = ({ permission }) => {
-	const [open, setOpen] = useState<boolean>(false);
-	const [codename, setCodename] = useState<string>(permission.codename);
+	const [open, setOpen] = useState(false);
+	const [codename, setCodename] = useState(permission.codename);
 
 	const { mutate: updatePermission, isPending } = usePatchPermission();
 	const t = useTranslations("management");
 	const tc = useTranslations("common");
 
-	useEffect(() => {
-		if (open) {
-			setCodename(permission.codename);
-		}
-	}, [open, permission.codename]);
+	const unchanged = !codename.trim() || codename === permission.codename;
 
 	const handleUpdate = (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!codename.trim() || codename === permission.codename) return;
+		if (unchanged) return;
 
 		updatePermission(
 			{
@@ -46,69 +42,57 @@ const PatchPermissionManagement: React.FC<Props> = ({ permission }) => {
 			},
 			{
 				onSuccess: (res) => {
-					if (!res._meta) {
-						setOpen(false);
-					}
+					if (!res._meta) setOpen(false);
 				},
 			},
 		);
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={setOpen}>
+		<Dialog
+			open={open}
+			onOpenChange={(next) => {
+				if (next) {
+					setCodename(permission.codename);
+				}
+				setOpen(next);
+			}}
+		>
 			<DialogTrigger asChild>
-				<button className="text-gray-200 hover:text-white bg-indigo-900 px-3 rounded-[3px]">
-					<FiEdit3 />
+				<button
+					type="button"
+					className="grid size-8 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+					title={tc("edit")}
+					aria-label={tc("edit")}
+				>
+					<Pencil size={15} />
 				</button>
 			</DialogTrigger>
 			<DialogContent className="max-w-sm">
 				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2">
-						{t("patch_permission_title")}
-					</DialogTitle>
+					<DialogTitle>{t("patch_permission_title")}</DialogTitle>
 				</DialogHeader>
 
-				<form onSubmit={handleUpdate} className="space-y-4 py-2">
-					<div className="space-y-2">
-						<label className="text-[11px] font-semibold text-gray-400 uppercase">
-							{t("patch_codename_label")}
-						</label>
+				<form onSubmit={handleUpdate} className="flex flex-col gap-5">
+					<Field label={t("patch_codename_label")} htmlFor={`perm-${permission.id}`} required>
 						<Input
+							id={`perm-${permission.id}`}
 							required
 							value={codename}
-							onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-								setCodename(e.target.value)
-							}
+							onChange={(e) => setCodename(e.target.value)}
 							disabled={isPending}
 							placeholder={t("patch_permission_placeholder")}
-							className="lowercase"
+							className="font-mono lowercase"
 						/>
-					</div>
+					</Field>
 
-					<DialogFooter className="pt-2 space-x-2.5">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => setOpen(false)}
-							disabled={isPending}
-							className="flex-1 text-xs"
-						>
+					<DialogFooter>
+						<Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
 							{tc("cancel")}
 						</Button>
-						<Button
-							type="submit"
-							disabled={
-								isPending ||
-								!codename.trim() ||
-								codename === permission.codename
-							}
-							className="flex-1 bg-indigo-900 hover:bg-indigo-800 text-white text-xs"
-						>
-							{isPending ? (
-								<Loader2 className="h-4 w-4 animate-spin" />
-							) : (
-								tc("update")
-							)}
+						<Button type="submit" disabled={isPending || unchanged}>
+							{isPending && <Loader2 className="animate-spin" />}
+							{tc("update")}
 						</Button>
 					</DialogFooter>
 				</form>

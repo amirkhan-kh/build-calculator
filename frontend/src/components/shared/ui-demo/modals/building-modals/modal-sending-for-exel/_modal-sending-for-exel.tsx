@@ -4,6 +4,7 @@ import React, { useState, useMemo, useRef } from "react";
 import {
 	Dialog,
 	DialogContent,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
@@ -12,13 +13,24 @@ import { useComplexes } from "@/action/hooks/complex-hook/get-complexes";
 import { useBuildings } from "@/action/hooks/buildings-hook/get-buildings";
 import { toast } from "sonner";
 import {
-	ChevronRight,
 	RefreshCcw,
 	FileUp,
+	FileSpreadsheet,
 	Download,
 	AlertTriangle,
+	Loader2,
 	Upload,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Field } from "@/components/shared/kit/field";
+import { cn } from "@/lib/cn";
 import { useTranslations } from "next-intl";
 import { useBulkCreateApartments } from "@/action/hooks/create-excel-hook/use-bulk-create-apartments";
 import { downloadApartmentTemplate } from "@/action/create-excel/download-template.api";
@@ -123,167 +135,151 @@ const ModaDataSendingForExel = ({
 		if (!val) resetForm();
 	};
 
+	const pending = uploadMutation.isPending;
+
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
-				<button className="flex items-center gap-2 rounded-sm bg-[#282964] px-4 py-1.5 text-sm text-white transition-colors hover:bg-[#1f2050]">
-					<Upload size={14} />
+				<Button variant="outline">
+					<Upload />
 					{triggerLabel ?? t("trigger_label")}
-				</button>
+				</Button>
 			</DialogTrigger>
 
-			<DialogContent className="bg-white sm:max-w-md">
+			<DialogContent className="max-w-md">
 				<DialogHeader>
-					<DialogTitle className="text-xl font-bold text-gray-800">
-						{t("import_title")}
-					</DialogTitle>
+					<DialogTitle>{t("import_title")}</DialogTitle>
 				</DialogHeader>
 
-				<form onSubmit={handleSubmit} className="space-y-5 py-4">
+				<form onSubmit={handleSubmit} className="flex flex-col gap-4">
 					{!isPreset && (
-						<>
-							<div className="space-y-2">
-								<label className="text-sm font-medium text-gray-700">
-									{t("complex_label")}
-								</label>
-								<select
+						<div className="grid gap-4 sm:grid-cols-2">
+							<Field label={t("complex_label")} required>
+								<Select
 									value={selectedComplexId}
-									onChange={(e) => {
-										setSelectedComplexId(e.target.value);
+									onValueChange={(v) => {
+										setSelectedComplexId(v);
 										setSelectedBuildingId("");
 									}}
-									className="w-full rounded-sm border border-gray-300 bg-white p-2.5 outline-none focus:ring-2 focus:ring-indigo-500"
-									required
-									disabled={isComplexesLoading || uploadMutation.isPending}
+									disabled={isComplexesLoading || pending}
 								>
-									<option value="">
-										{isComplexesLoading ? t("select_complex_loading") : t("select_complex_placeholder")}
-									</option>
-									{complexes.map((c) => (
-										<option key={c.id} value={c.id}>
-											{c.name}
-										</option>
-									))}
-								</select>
-							</div>
+									<SelectTrigger>
+										<SelectValue
+											placeholder={isComplexesLoading ? t("select_complex_loading") : t("select_complex_placeholder")}
+										/>
+									</SelectTrigger>
+									<SelectContent>
+										{complexes.map((c) => (
+											<SelectItem key={c.id} value={String(c.id)}>
+												{c.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</Field>
 
-							<div className="space-y-2">
-								<label className="text-sm font-medium text-gray-700">
-									{t("building_label")}
-								</label>
-								<select
+							<Field label={t("building_label")} required>
+								<Select
 									value={selectedBuildingId}
-									onChange={(e) => setSelectedBuildingId(e.target.value)}
-									className="w-full rounded-sm border border-gray-300 bg-white p-2.5 outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50"
-									disabled={
-										!selectedComplexId ||
-										isBuildingsLoading ||
-										uploadMutation.isPending
-									}
-									required
+									onValueChange={setSelectedBuildingId}
+									disabled={!selectedComplexId || isBuildingsLoading || pending}
 								>
-									<option value="">{t("select_building")}</option>
-									{filteredBuildings.map((b) => (
-										<option key={b.id} value={b.id}>
-											{b.name}
-										</option>
-									))}
-								</select>
-							</div>
-						</>
+									<SelectTrigger>
+										<SelectValue placeholder={t("select_building")} />
+									</SelectTrigger>
+									<SelectContent>
+										{filteredBuildings.map((b) => (
+											<SelectItem key={b.id} value={String(b.id)}>
+												{b.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</Field>
+						</div>
 					)}
 
 					{activeBuildingId && (
-						<div className="flex items-center justify-between rounded-xl border border-dashed border-indigo-200 bg-indigo-50/50 px-4 py-3">
-							<div>
-								<p className="text-xs font-semibold text-indigo-700">
-									{t("template_title")}
-								</p>
-								<p className="text-[11px] text-indigo-400">
-									{t("template_hint")}
-								</p>
+						<div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+							<div className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600">
+								<FileSpreadsheet size={18} />
 							</div>
-							<button
+							<div className="min-w-0 flex-1">
+								<p className="text-[13px] font-medium text-slate-800">{t("template_title")}</p>
+								<p className="text-xs text-slate-500">{t("template_hint")}</p>
+							</div>
+							<Button
 								type="button"
+								variant="outline"
+								size="sm"
 								onClick={handleDownloadTemplate}
-								disabled={isDownloading || uploadMutation.isPending}
-								className="flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+								disabled={isDownloading || pending}
 							>
-								<Download size={13} />
+								{isDownloading ? <Loader2 className="animate-spin" /> : <Download />}
 								{isDownloading ? tc("downloading") : tc("download")}
-							</button>
+							</Button>
 						</div>
 					)}
 
-					<div className="space-y-2">
-						<label className="text-sm font-medium text-gray-700">
-							{t("file_label")}
+					<Field label={t("file_label")} required>
+						<input
+							type="file"
+							ref={fileInputRef}
+							accept=".xls,.xlsx"
+							onChange={(e) => {
+								setFile(e.target.files?.[0] || null);
+								setRowErrors([]);
+							}}
+							className="hidden"
+							id="excel-upload"
+							disabled={pending}
+						/>
+						<label
+							htmlFor="excel-upload"
+							className={cn(
+								"flex w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed px-4 py-6 text-center transition-colors",
+								file
+									? "border-indigo-200 bg-indigo-50/40"
+									: "border-slate-300 bg-white hover:border-indigo-300 hover:bg-indigo-50/40",
+							)}
+						>
+							<FileUp size={22} className={file ? "text-indigo-500" : "text-slate-400"} />
+							<span className="max-w-full truncate text-[13px] font-medium text-slate-700">
+								{file ? file.name : t("select_file")}
+							</span>
+							<span className="text-[11px] text-slate-400">.xls, .xlsx</span>
 						</label>
-						<div className="relative">
-							<input
-								type="file"
-								ref={fileInputRef}
-								accept=".xls,.xlsx"
-								onChange={(e) => {
-									setFile(e.target.files?.[0] || null);
-									setRowErrors([]);
-								}}
-								className="hidden"
-								id="excel-upload"
-								disabled={uploadMutation.isPending}
-							/>
-							<label
-								htmlFor="excel-upload"
-								className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-sm border-2 border-dashed border-gray-300 p-3 transition-all hover:border-indigo-400 hover:bg-indigo-50"
-							>
-								<FileUp size={20} className="text-gray-400" />
-								<span className="truncate text-sm text-gray-600">
-									{file ? file.name : t("select_file")}
-								</span>
-							</label>
-						</div>
-					</div>
+					</Field>
 
 					{rowErrors.length > 0 && (
-						<div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+						<div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3.5">
 							<div className="mb-2 flex items-center gap-2">
-								<AlertTriangle size={15} className="text-amber-500" />
-								<p className="text-sm font-semibold text-amber-700">
+								<AlertTriangle size={15} className="text-amber-600" />
+								<p className="text-[13px] font-semibold text-amber-800">
 									{t("rows_failed", { count: rowErrors.length })}
 								</p>
 							</div>
-							<ul className="max-h-40 space-y-1 overflow-y-auto text-xs text-amber-600">
+							<ul className="max-h-40 space-y-1 overflow-y-auto text-xs text-amber-700 scrollbar-thin">
 								{rowErrors.map((err, i) => (
-									<li key={i} className="border-b border-amber-100 pb-1">
+									<li key={i} className="border-b border-amber-100 pb-1 last:border-0">
 										{err}
 									</li>
 								))}
 							</ul>
-							<p className="mt-2 text-[11px] text-amber-500">
-								{t("rest_added")}
-							</p>
+							<p className="mt-2 text-[11px] text-amber-600">{t("rest_added")}</p>
 						</div>
 					)}
 
-					<div className="flex gap-3 border-t pt-4">
-						<button
-							type="submit"
-							disabled={uploadMutation.isPending}
-							className="flex flex-1 items-center justify-center gap-2 rounded-sm bg-gradient-to-r from-[#400189] to-[#46479f] py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-						>
-							{uploadMutation.isPending ? tc("uploading") : tc("upload")}{" "}
-							<ChevronRight size={18} />
-						</button>
-
-						<button
-							type="button"
-							onClick={resetForm}
-							disabled={uploadMutation.isPending}
-							className="rounded-sm border border-gray-300 px-4 text-gray-600 transition-colors hover:bg-gray-50"
-						>
-							<RefreshCcw size={18} />
-						</button>
-					</div>
+					<DialogFooter className="pt-1">
+						<Button type="button" variant="outline" onClick={resetForm} disabled={pending}>
+							<RefreshCcw />
+							{tc("reset")}
+						</Button>
+						<Button type="submit" disabled={pending || !file || !activeBuildingId}>
+							{pending ? <Loader2 className="animate-spin" /> : <Upload />}
+							{pending ? tc("uploading") : tc("upload")}
+						</Button>
+					</DialogFooter>
 				</form>
 			</DialogContent>
 		</Dialog>

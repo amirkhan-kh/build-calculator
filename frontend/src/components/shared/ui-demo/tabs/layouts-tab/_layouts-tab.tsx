@@ -3,8 +3,7 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { MdOutlineDeleteForever } from "react-icons/md";
-import { ImFilesEmpty } from "react-icons/im";
+import { ImagePlus, LayoutGrid, Loader2, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useLayoutsByBuilding } from "@/action/hooks/layouts-hook/get-layouts.hook";
@@ -12,6 +11,12 @@ import { createLayout } from "@/action/layouts/create-layout.api";
 import { deleteLayout } from "@/action/layouts/delete-layout.api";
 import { uploadLayoutImage } from "@/action/layouts/upload-layout-image.api";
 import { IMAGE_ACCEPT, validateImageFile } from "@/lib/image-file.util";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/shared/kit/field";
+import { Segmented } from "@/components/shared/kit/segmented";
+import { EmptyState, LoadingState } from "@/components/shared/kit/empty-state";
+import { ConfirmDialog, deleteTriggerClass } from "@/components/shared/kit/confirm-dialog";
 
 interface LayoutsTabProps {
     buildingId: number;
@@ -29,6 +34,7 @@ export function LayoutsTab({ buildingId }: LayoutsTabProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const [uploadingId, setUploadingId] = useState<number | null>(null);
+    const [confirmId, setConfirmId] = useState<number | null>(null);
 
     const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
@@ -95,185 +101,150 @@ export function LayoutsTab({ buildingId }: LayoutsTabProps) {
     };
 
     return (
-        <div className="relative overflow-hidden rounded-sm bg-gradient-to-br from-indigo-200 via-indigo-100 to-indigo-100 py-6 px-3 space-y-4">
-
-            <form
-                onSubmit={handleAdd}
-                className="bg-white rounded-sm border border-indigo-200 p-4 shadow-sm"
-            >
-                <p className="text-sm font-semibold text-gray-700 mb-3">
-                    {t("add_title")}
-                </p>
-                <div className="flex flex-wrap gap-3 items-end">
-                    <div className="space-y-1">
-                        <label className="text-xs text-gray-500 font-medium">
-                            {t("rooms_label")}
-                        </label>
-                        <select
+        <div className="flex flex-col gap-4">
+            <form onSubmit={handleAdd} className="glass rounded-2xl p-4">
+                <p className="mb-3 text-sm font-semibold text-slate-900">{t("add_title")}</p>
+                <div className="flex flex-wrap items-end gap-3">
+                    <Field label={t("rooms_label")}>
+                        <Segmented
                             value={form.room_count}
-                            onChange={(e) =>
-                                setForm((p) => ({ ...p, room_count: e.target.value }))
-                            }
-                            className="h-9 border rounded px-3 text-sm bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
-                        >
-                            {ROOM_OPTIONS.map((n) => (
-                                <option key={n} value={n}>
-                                    {n}{t("room_suffix")}
-                                </option>
-                            ))}
-                            <option value="6">6+</option>
-                        </select>
-                    </div>
-
-                    <div className="space-y-1">
-                        <label className="text-xs text-gray-500 font-medium">
-                            {t("area_label")}
-                        </label>
-                        <input
+                            onChange={(v) => setForm((p) => ({ ...p, room_count: v }))}
+                            options={[
+                                ...ROOM_OPTIONS.map((n) => ({ value: String(n), label: String(n) })),
+                                { value: "6", label: "6+" },
+                            ]}
+                        />
+                    </Field>
+                    <Field label={t("area_label")} htmlFor="layout-area" required>
+                        <Input
+                            id="layout-area"
                             type="number"
                             step="0.01"
                             min="1"
                             value={form.area}
-                            onChange={(e) =>
-                                setForm((p) => ({ ...p, area: e.target.value }))
-                            }
+                            onChange={(e) => setForm((p) => ({ ...p, area: e.target.value }))}
                             placeholder="65.50"
                             required
-                            className="h-9 w-28 border rounded px-3 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                            className="w-28"
                         />
-                    </div>
-
-                    <div className="space-y-1 flex-1 min-w-[140px]">
-                        <label className="text-xs text-gray-500 font-medium">
-                            {t("name_label")}{" "}
-                            <span className="font-normal text-gray-400">
-                                ({t("optional")})
-                            </span>
-                        </label>
-                        <input
+                    </Field>
+                    <Field
+                        label={<>{t("name_label")} <span className="font-normal text-slate-400">({t("optional")})</span></>}
+                        htmlFor="layout-name"
+                        className="min-w-[180px] flex-1"
+                    >
+                        <Input
+                            id="layout-name"
                             type="text"
                             value={form.name}
-                            onChange={(e) =>
-                                setForm((p) => ({ ...p, name: e.target.value }))
-                            }
+                            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
                             placeholder="Студия, Евро-2 ..."
-                            className="h-9 w-full border rounded px-3 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
                         />
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="h-9 px-5 bg-[#282964] text-white text-sm rounded hover:bg-[#1f2050] disabled:opacity-50 transition-colors"
-                    >
+                    </Field>
+                    <Button type="submit" disabled={isSubmitting} className="h-10">
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : <Plus />}
                         {isSubmitting ? t("adding") : t("add_btn")}
-                    </button>
+                    </Button>
                 </div>
             </form>
 
-            <div className="bg-white rounded-sm border border-gray-200 shadow-sm overflow-hidden">
-                {isLoading ? (
-                    <div className="py-8 text-center text-gray-400 text-sm">
-                        {t("loading")}
-                    </div>
-                ) : layouts.length === 0 ? (
-                    <div className="py-10 flex flex-col items-center gap-2 text-gray-400">
-                        <ImFilesEmpty size={32} />
-                        <p className="text-sm font-medium">{t("empty")}</p>
-                        <p className="text-xs text-gray-400">
-                            {t("empty_hint")}
-                        </p>
-                    </div>
-                ) : (
-                    <table className="w-full text-sm">
-                        <thead className="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">#</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t("col_rooms")}</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t("col_area")}</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t("col_name")}</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t("col_layout")}</th>
-                                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{t("col_action")}</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {layouts.map((layout, idx) => (
-                                <tr
-                                    key={layout.id}
-                                    className="hover:bg-indigo-50/40 transition-colors"
+            {isLoading ? (
+                <LoadingState className="min-h-40" />
+            ) : layouts.length === 0 ? (
+                <EmptyState icon={LayoutGrid} title={t("empty")} description={t("empty_hint")} />
+            ) : (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+                    {layouts.map((layout) => {
+                        const uploading = uploadingId === layout.id;
+                        return (
+                            <div
+                                key={layout.id}
+                                className="group overflow-hidden rounded-2xl border border-white/70 bg-white/80 shadow-xs backdrop-blur-sm transition-shadow hover:shadow-[0_12px_32px_-16px_rgb(30_33_80/0.25)]"
+                            >
+                                <button
+                                    type="button"
+                                    disabled={uploading}
+                                    onClick={() => fileInputRefs.current[layout.id]?.click()}
+                                    className="relative block aspect-[4/3] w-full overflow-hidden border-b border-slate-100 bg-slate-50"
+                                    title={layout.image_url ? t("replace_btn") : t("upload_btn")}
                                 >
-                                    <td className="px-4 py-3 text-gray-400 font-mono text-xs">{idx + 1}</td>
-                                    <td className="px-4 py-3">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
-                                            {layout.room_count}{t("room_suffix")}
+                                    {layout.image_url ? (
+                                        <Image
+                                            fill
+                                            unoptimized
+                                            src={layout.image_url}
+                                            alt={t("col_layout")}
+                                            sizes="260px"
+                                            className="object-contain p-3"
+                                        />
+                                    ) : (
+                                        <span className="flex h-full flex-col items-center justify-center gap-1.5 text-slate-400 transition-colors group-hover:text-indigo-500">
+                                            <ImagePlus size={22} strokeWidth={1.75} />
+                                            <span className="text-xs font-medium">{t("upload_btn")}</span>
                                         </span>
-                                    </td>
-                                    <td className="px-4 py-3 font-semibold text-gray-800">
-                                        {layout.area} {t("area_suffix")}
-                                    </td>
-                                    <td className="px-4 py-3 text-gray-600">
-                                        {layout.name || (
-                                            <span className="text-gray-300 italic text-xs">—</span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-2">
-                                            {layout.image_url && (
-                                                <div className="relative w-10 h-10 flex-shrink-0">
-                                                    <Image
-                                                        fill
-                                                        unoptimized
-                                                        src={layout.image_url}
-                                                        alt={t("col_layout")}
-                                                        className="object-cover rounded border border-gray-200"
-                                                    />
-                                                </div>
-                                            )}
-                                            <button
-                                                type="button"
-                                                disabled={uploadingId === layout.id}
-                                                onClick={() =>
-                                                    fileInputRefs.current[layout.id]?.click()
-                                                }
-                                                className="text-xs px-2 py-1 rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50 disabled:opacity-40 transition-colors whitespace-nowrap"
-                                            >
-                                                {uploadingId === layout.id
-                                                    ? t("uploading")
-                                                    : layout.image_url
-                                                    ? t("replace_btn")
-                                                    : t("upload_btn")}
-                                            </button>
-                                            <input
-                                                ref={(el) => {
-                                                    fileInputRefs.current[layout.id] = el;
-                                                }}
-                                                type="file"
-                                                accept={IMAGE_ACCEPT}
-                                                className="hidden"
-                                                onChange={(e) => {
-                                                    const file = e.target.files?.[0];
-                                                    if (file) handleImageUpload(layout.id, file);
-                                                    e.target.value = "";
-                                                }}
-                                            />
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <button
-                                            onClick={() => handleDelete(layout.id)}
-                                            disabled={deletingId === layout.id}
-                                            className="inline-flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-40"
-                                        >
-                                            <MdOutlineDeleteForever size={16} />
-                                            {deletingId === layout.id ? tc("deleting") : tc("delete")}
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
+                                    )}
+                                    {layout.image_url && !uploading && (
+                                        <span className="absolute inset-0 grid place-items-center bg-slate-950/40 text-xs font-medium text-white opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100">
+                                            {t("replace_btn")}
+                                        </span>
+                                    )}
+                                    {uploading && (
+                                        <span className="absolute inset-0 grid place-items-center bg-white/70 backdrop-blur-[2px]">
+                                            <Loader2 size={20} className="animate-spin text-indigo-500" />
+                                        </span>
+                                    )}
+                                </button>
+                                <input
+                                    ref={(el) => {
+                                        fileInputRefs.current[layout.id] = el;
+                                    }}
+                                    type="file"
+                                    accept={IMAGE_ACCEPT}
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleImageUpload(layout.id, file);
+                                        e.target.value = "";
+                                    }}
+                                />
+                                <div className="flex items-center gap-2 p-3">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="flex items-baseline gap-2">
+                                            <span className="text-base font-semibold tabular-nums text-slate-900">
+                                                {layout.area} {t("area_suffix")}
+                                            </span>
+                                            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600">
+                                                {layout.room_count}{t("room_suffix")}
+                                            </span>
+                                        </p>
+                                        <p className="mt-0.5 truncate text-xs text-slate-500">{layout.name || "—"}</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setConfirmId(layout.id)}
+                                        className={deleteTriggerClass}
+                                        aria-label={tc("delete")}
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            <ConfirmDialog
+                open={confirmId !== null}
+                onOpenChange={(v) => !v && setConfirmId(null)}
+                title={t("delete_title")}
+                description={t("delete_confirm")}
+                pending={deletingId !== null}
+                onConfirm={async () => {
+                    if (confirmId !== null) await handleDelete(confirmId);
+                    setConfirmId(null);
+                }}
+            />
         </div>
     );
 }

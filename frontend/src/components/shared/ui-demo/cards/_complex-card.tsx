@@ -2,8 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { HiMiniBuildingOffice2 } from "react-icons/hi2";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowRight, Building2 } from "lucide-react";
 import { ModalDeleteComplex } from "../modals/complex-modal/modal-delete-complex/_modal-delete-complex";
 import type { IComplex } from "@/types/complex.types";
 import { useRouter } from "next/navigation";
@@ -11,6 +10,11 @@ import { useTranslations } from "next-intl";
 
 interface ComplexCardProps {
     complex: IComplex;
+}
+
+export function monogram(name: string) {
+    const words = name.replace(/["'«»]/g, "").trim().split(/\s+/).filter(Boolean);
+    return ((words[0]?.[0] ?? "") + (words[1]?.[0] ?? "")).toUpperCase() || "—";
 }
 
 export function ComplexCard({ complex }: ComplexCardProps) {
@@ -25,56 +29,50 @@ export function ComplexCard({ complex }: ComplexCardProps) {
     return (
         <Link
             href={`/complex/${complex.id}`}
-            className="group relative flex flex-col rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-indigo-100 overflow-hidden"
+            className="group relative flex flex-col rounded-2xl border border-white/70 bg-white/80 p-4 shadow-xs backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-100 hover:bg-white hover:shadow-[0_12px_32px_-16px_rgb(30_33_80/0.25)]"
         >
-            {/* Delete — поверх баннера */}
             <div
-                className="absolute right-3 top-3 z-20"
+                className="absolute right-3 top-3 z-10 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100 lg:focus-within:opacity-100"
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
             >
-                <ModalDeleteComplex
-                    complexId={complex.id}
-                    onSuccess={() => router.refresh()}
-                />
+                <ModalDeleteComplex complexId={complex.id} onSuccess={() => router.refresh()} />
             </div>
 
-            {/* Баннер 16:9 */}
-            <div className="relative w-full" style={{ paddingBottom: "52%" }}>
-                {complex.logo_url ? (
-                    <Image
-                        src={complex.logo_url}
-                        alt={complex.name}
-                        fill
-                        unoptimized
-                        className="object-contain p-5 bg-gradient-to-br from-indigo-50 to-slate-100"
-                    />
-                ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-indigo-50 via-slate-50 to-indigo-100">
-                        <HiMiniBuildingOffice2 size={48} className="text-indigo-200" />
-                    </div>
-                )}
-
-                {/* Бейдж зданий поверх баннера */}
-                <span className="absolute bottom-2.5 left-3 z-10 inline-flex items-center gap-1 rounded-full bg-white/90 backdrop-blur-sm px-2.5 py-1 text-[11px] font-semibold text-indigo-700 shadow-sm border border-indigo-100">
-                    {buildingsCount} {label}
-                </span>
-            </div>
-
-            {/* Контент */}
-            <div className="flex flex-1 flex-col p-4">
-                <h3 className="truncate text-sm font-bold text-gray-900 capitalize leading-snug">
-                    {complex.name}
-                </h3>
-                <p className="mt-1.5 line-clamp-2 text-xs text-gray-400 leading-relaxed flex-1">
-                    {complex.description || t("no_description")}
-                </p>
-
-                <div className="mt-3 flex items-center justify-between border-t border-gray-50 pt-3">
-                    <span className="text-xs font-medium text-gray-400">{t("open_btn")}</span>
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-50 text-gray-400 transition-all duration-200 group-hover:bg-indigo-600 group-hover:text-white">
-                        <ArrowUpRight size={14} />
+            <div className="flex items-start gap-3.5 pr-8">
+                <div className="relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-200/80 bg-white">
+                    {complex.logo_url ? (
+                        <Image
+                            src={complex.logo_url}
+                            alt={complex.name}
+                            fill
+                            unoptimized
+                            sizes="56px"
+                            className="object-contain p-1.5"
+                        />
+                    ) : (
+                        <span className="text-base font-semibold tracking-tight text-ink/70">
+                            {monogram(complex.name)}
+                        </span>
+                    )}
+                </div>
+                <div className="min-w-0 pt-0.5">
+                    <h3 className="truncate text-[15px] font-semibold leading-snug text-slate-900">
+                        {complex.name}
+                    </h3>
+                    <span className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                        <Building2 size={13} className="text-indigo-400" />
+                        {buildingsCount} {label}
                     </span>
                 </div>
+            </div>
+
+            <p className="mt-3 line-clamp-2 min-h-[2.5rem] flex-1 text-[13px] leading-5 text-slate-500">
+                {complex.description || t("no_description")}
+            </p>
+
+            <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-[13px] font-medium text-slate-500 transition-colors group-hover:text-ink">
+                {t("open_btn")}
+                <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-0.5" />
             </div>
         </Link>
     );

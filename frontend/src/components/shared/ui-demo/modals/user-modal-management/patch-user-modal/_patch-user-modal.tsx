@@ -4,15 +4,17 @@ import React, { useState } from "react";
 import {
 	Dialog,
 	DialogContent,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FiEdit3 } from "react-icons/fi";
+import { Loader2, Pencil } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePatchUser } from "@/action/hooks/users-hook/user-patch.hook";
+import { Field } from "@/components/shared/kit/field";
 import type { IUser } from "@/types/user.types";
 
 interface IUpdateUserFields extends Partial<IUser> {
@@ -25,10 +27,7 @@ interface Props {
 
 const PatchUserManagement: React.FC<Props> = ({ user }) => {
 	const [open, setOpen] = useState(false);
-	const [formData, setFormData] = useState<IUpdateUserFields>({
-		username: user.username,
-		password: "",
-	});
+	const [formData, setFormData] = useState<IUpdateUserFields>({ username: user.username, password: "" });
 	const t = useTranslations("management");
 	const tc = useTranslations("common");
 
@@ -36,16 +35,9 @@ const PatchUserManagement: React.FC<Props> = ({ user }) => {
 
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-
 		const payload: IUpdateUserFields = {};
-
-		if (formData.username && formData.username !== user.username) {
-			payload.username = formData.username;
-		}
-
-		if (formData.password && formData.password.trim() !== "") {
-			payload.password = formData.password;
-		}
+		if (formData.username && formData.username !== user.username) payload.username = formData.username;
+		if (formData.password && formData.password.trim() !== "") payload.password = formData.password;
 
 		if (Object.keys(payload).length === 0) {
 			setOpen(false);
@@ -54,78 +46,69 @@ const PatchUserManagement: React.FC<Props> = ({ user }) => {
 
 		updateUser(
 			{ id: user.id, data: payload as Partial<IUser> },
-			{
-				onSuccess: () => {
-					setOpen(false);
-					setFormData((prev) => ({ ...prev, password: "" }));
-				},
-			},
+			{ onSuccess: () => setOpen(false) },
 		);
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={setOpen}>
+		<Dialog
+			open={open}
+			onOpenChange={(next) => {
+				if (next) {
+					setFormData({ username: user.username, password: "" });
+				}
+				setOpen(next);
+			}}
+		>
 			<DialogTrigger asChild>
 				<button
-					className="text-gray-200 hover:text-white bg-indigo-900 px-3 py-1 rounded-[3px] transition-colors flex items-center justify-center"
-					aria-label="Edit user"
+					type="button"
+					className="grid size-8 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+					title={tc("edit")}
+					aria-label={tc("edit")}
 				>
-					<FiEdit3 />
+					<Pencil size={15} />
 				</button>
 			</DialogTrigger>
-			<DialogContent className="max-w-96">
+			<DialogContent className="max-w-sm">
 				<DialogHeader>
-					<DialogTitle className="text-center text-xl">
-						{t("edit_profile_title")}
-					</DialogTitle>
+					<DialogTitle>{t("edit_profile_title")}</DialogTitle>
 				</DialogHeader>
 
-				<form onSubmit={handleSubmit} className="space-y-4 py-4">
-					<div className="space-y-2">
-						<label>{t("new_username_label")}</label>
+				<form onSubmit={handleSubmit} className="flex flex-col gap-5">
+					<Field label={t("new_username_label")} htmlFor={`edit-username-${user.id}`}>
 						<Input
-							id="edit-username"
-							type="text"
+							id={`edit-username-${user.id}`}
 							value={formData.username ?? ""}
-							onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-								setFormData({ ...formData, username: e.target.value })
-							}
+							onChange={(e) => setFormData({ ...formData, username: e.target.value })}
 							placeholder={t("new_username_placeholder")}
 							autoComplete="username"
 						/>
-					</div>
-
-					<div className="space-y-2">
-						<label>{t("new_password_label")}</label>
+					</Field>
+					<Field
+						label={t("new_password_label")}
+						htmlFor={`edit-password-${user.id}`}
+						hint={t("new_password_placeholder")}
+					>
 						<Input
-							id="edit-password"
+							id={`edit-password-${user.id}`}
 							type="password"
 							value={formData.password ?? ""}
-							onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-								setFormData({ ...formData, password: e.target.value })
-							}
-							placeholder={t("new_password_placeholder")}
+							onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+							placeholder="••••••"
 							autoComplete="new-password"
 						/>
-					</div>
+					</Field>
 
-					<div className="flex justify-end gap-3 pt-4">
-						<Button
-							type="button"
-							variant="ghost"
-							onClick={() => setOpen(false)}
-							disabled={isPending}
-						>
+					<DialogFooter>
+						<Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
 							{tc("cancel")}
 						</Button>
-						<Button
-							type="submit"
-							className="bg-indigo-900 hover:bg-indigo-800 text-white"
-							disabled={isPending}
-						>
+						<Button type="submit" disabled={isPending}>
+							{isPending && <Loader2 className="animate-spin" />}
 							{isPending ? tc("saving") : t("save_changes_btn")}
 						</Button>
-					</div>
+					</DialogFooter>
 				</form>
 			</DialogContent>
 		</Dialog>

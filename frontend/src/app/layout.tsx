@@ -8,12 +8,14 @@ import "./globals.css";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
-	subsets: ["latin"],
+	subsets: ["latin", "latin-ext", "cyrillic"],
+	display: "swap",
 });
 
 const geistMono = Geist_Mono({
 	variable: "--font-geist-mono",
-	subsets: ["latin"],
+	subsets: ["latin", "cyrillic"],
+	display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -45,7 +47,12 @@ export default async function RootLayout({
 				<NextIntlClientProvider messages={messages}>
 					<QueryProvider>{children}</QueryProvider>
 				</NextIntlClientProvider>
-				<Toaster richColors position="bottom-right" />
+				<Toaster
+					position="top-right"
+					richColors
+					closeButton
+					toastOptions={{ className: "!rounded-xl !text-[13px]" }}
+				/>
 			</body>
 		</html>
 	);

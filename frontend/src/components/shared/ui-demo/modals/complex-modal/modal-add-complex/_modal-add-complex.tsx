@@ -12,7 +12,11 @@ import {
 	DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { IMAGE_ACCEPT, validateImageFile } from "@/lib/image-file.util";
+import { validateImageFile } from "@/lib/image-file.util";
+import { Textarea } from "@/components/ui/textarea";
+import { Field } from "@/components/shared/kit/field";
+import { ImagePicker } from "@/components/shared/kit/image-picker";
+import { Loader2, Plus } from "lucide-react";
 import { ModalPropsModalAddedComplex } from "@/types/props.types";
 import { FC, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -45,7 +49,7 @@ export const ModalAddedComplex: FC<ModalPropsModalAddedComplex> = ({
 		if (!nextOpen) resetForm();
 	};
 
-	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
 		const { name, value } = e.target;
 		setFormData((prev) => ({ ...prev, [name]: value }));
 	};
@@ -115,24 +119,29 @@ export const ModalAddedComplex: FC<ModalPropsModalAddedComplex> = ({
 		}
 	};
 
+	const clearLogo = () => {
+		setLogoFile(null);
+		if (logoPreview) URL.revokeObjectURL(logoPreview);
+		setLogoPreview(null);
+		if (fileInputRef.current) fileInputRef.current.value = "";
+	};
+
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
-				<button className="bg-[#282964] px-2 py-1 rounded-[3px] leading-5 text-white text-sm hover:bg-[#1f2050] transition-colors">
+				<Button>
+					<Plus />
 					{t("add_btn")}
-				</button>
+				</Button>
 			</DialogTrigger>
 
-			<DialogContent className="max-w-96">
+			<DialogContent className="max-w-md">
 				<DialogHeader>
 					<DialogTitle>{t("add_title")}</DialogTitle>
 				</DialogHeader>
 
-				<form onSubmit={handleSubmit} className="space-y-4 py-4">
-					<div className="space-y-2">
-						<label htmlFor="name" className="text-sm font-medium">
-							{t("name_label")} *
-						</label>
+				<form onSubmit={handleSubmit} className="flex flex-col gap-4">
+					<Field label={t("name_label")} htmlFor="name" required>
 						<Input
 							id="name"
 							name="name"
@@ -142,71 +151,47 @@ export const ModalAddedComplex: FC<ModalPropsModalAddedComplex> = ({
 							onChange={handleChange}
 							required
 							disabled={loading}
-							className="w-full"
+							autoFocus
 						/>
-					</div>
+					</Field>
 
-					<div className="space-y-2">
-						<label htmlFor="description" className="text-sm font-medium">
-							{tc("description")}
-						</label>
-						<Input
+					<Field label={tc("description")} htmlFor="description">
+						<Textarea
 							id="description"
 							name="description"
-							type="text"
+							rows={3}
 							placeholder={tc("description")}
 							value={formData.description}
 							onChange={handleChange}
 							disabled={loading}
-							className="w-full"
 						/>
-					</div>
+					</Field>
 
-					<div className="space-y-2">
-						<label htmlFor="logo" className="text-sm font-medium">
-							{t("logo_label")}{" "}
-							<span className="text-gray-400 font-normal">
-								({t("logo_optional")})
-							</span>
-						</label>
-						{logoPreview && (
-							<div className="w-20 h-20 rounded-xl overflow-hidden border border-indigo-200 bg-white flex items-center justify-center">
-								{/* local preview only — file is uploaded to backend on submit */}
-								<img
-									src={logoPreview}
-									alt={t("logo_alt")}
-									className="max-w-full max-h-full object-contain"
-								/>
-							</div>
-						)}
-						<Input
-							id="logo"
+					<Field label={<>{t("logo_label")} <span className="font-normal text-slate-400">({t("logo_optional")})</span></>}>
+						<ImagePicker
+							id="complex-logo"
 							ref={fileInputRef}
-							name="logo"
-							type="file"
-							accept={IMAGE_ACCEPT}
+							previewUrl={logoPreview}
+							fileName={logoFile?.name}
 							onChange={handleLogoChange}
+							onClear={clearLogo}
 							disabled={loading}
-							className="w-full"
+							title={tc("select_file")}
+							hint={t("logo_hint")}
 						/>
-						<p className="text-xs text-gray-400">{t("logo_hint")}</p>
-					</div>
+					</Field>
 
-					<DialogFooter>
+					<DialogFooter className="pt-2">
 						<Button
 							type="button"
 							variant="outline"
 							onClick={() => handleOpenChange(false)}
 							disabled={loading}
-							className="mr-2"
 						>
 							{tc("cancel")}
 						</Button>
-						<Button
-							type="submit"
-							disabled={loading || !formData.name.trim()}
-							className="bg-[#282964] hover:bg-[#1f2050]"
-						>
+						<Button type="submit" disabled={loading || !formData.name.trim()}>
+							{loading && <Loader2 className="animate-spin" />}
 							{loading ? tc("adding") : tc("add")}
 						</Button>
 					</DialogFooter>

@@ -1,4 +1,5 @@
-import { ImFileEmpty } from "react-icons/im";
+import { SearchX } from "lucide-react";
+import { EmptyState } from "@/components/shared/kit/empty-state";
 import { TabsDemoBuildings } from "@/components/shared/ui-demo/tabs/_tab-buildings";
 import Link from "next/link";
 import { getBuildingById } from "@/action/buildings/get-building.api";
@@ -29,18 +30,16 @@ export default async function SingleBuildingPage({ params }: Props) {
 
 	if (!building) {
 		return (
-			<div className="flex items-center justify-center flex-col h-screen text-gray-500">
-				<ImFileEmpty size={40} className="mb-2 text-gray-300" />
-				<p className="text-center font-medium font-sans">
-					{tc("not_found")}
-				</p>
-				<Link
-					href="/buildings"
-					className="mt-4 px-6 py-2 bg-[#282964] text-white rounded-[3px] text-sm"
-				>
-					{tc("back_to_list")}
-				</Link>
-			</div>
+			<EmptyState
+				className="mt-10"
+				icon={SearchX}
+				title={tc("not_found")}
+				action={
+					<Link href="/" className="text-sm font-medium text-ink hover:underline">
+						{tc("back_to_list")}
+					</Link>
+				}
+			/>
 		);
 	}
 

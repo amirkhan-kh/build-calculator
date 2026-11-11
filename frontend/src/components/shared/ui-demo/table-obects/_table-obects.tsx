@@ -1,8 +1,11 @@
 "use client";
 
 import React, { useCallback, useMemo, useState } from "react";
-import { ImFileEmpty } from "react-icons/im";
-import { SpinnerDemo } from "../spinner-demo/_spinner-demo";
+import { AlertCircle, SearchX } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/shared/kit/page-header";
+import { EmptyState, LoadingState } from "@/components/shared/kit/empty-state";
+import { Pagination } from "@/components/shared/kit/pagination";
 import { ModalAddedComplex } from "../modals/complex-modal/modal-add-complex/_modal-add-complex";
 import { useComplexes } from "@/action/hooks/complex-hook/get-complexes";
 import type { TableComplexProps } from "@/types/props.types";
@@ -17,7 +20,6 @@ import {
 import { useTranslations } from "next-intl";
 
 const ITEMS_PER_PAGE = 12;
-const MAX_VISIBLE_PAGES = 5;
 
 const DEFAULT_SORT: ComplexSortBy = "name_asc";
 const DEFAULT_LOGO: ComplexLogoFilter = "all";
@@ -121,47 +123,29 @@ const TableObjects: React.FC<TableComplexProps> = ({ initialComplex }) => {
         [pathname, router, searchParams],
     );
 
-    const paginationPages = useMemo(() => {
-        let start = Math.max(1, currentPage - Math.floor(MAX_VISIBLE_PAGES / 2));
-        let end = start + MAX_VISIBLE_PAGES - 1;
-        if (end > totalPages) {
-            end = totalPages;
-            start = Math.max(1, end - MAX_VISIBLE_PAGES + 1);
-        }
-        return Array.from({ length: Math.max(0, end - start + 1) }, (_, i) => start + i);
-    }, [currentPage, totalPages]);
 
-    if (isLoading)
-        return (
-            <div className="flex justify-center items-center min-h-96">
-                <SpinnerDemo />
-            </div>
-        );
+    if (isLoading) return <LoadingState className="min-h-96" />;
 
     if (error)
         return (
-            <div className="text-center p-8 border rounded-2xl">
-                <p className="text-red-500 mb-4">{t("load_error")}</p>
-                <button
-                    onClick={() => refetch()}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm hover:bg-indigo-700 transition-colors"
-                >
-                    {t("retry_btn")}
-                </button>
-            </div>
+            <EmptyState
+                icon={AlertCircle}
+                title={t("load_error")}
+                action={
+                    <Button variant="outline" onClick={() => refetch()}>
+                        {t("retry_btn")}
+                    </Button>
+                }
+            />
         );
 
     return (
         <section>
-            <div className="flex flex-col gap-4 pb-6 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-black text-gray-900">{t("title")}</h1>
-                    <p className="mt-1 text-sm text-gray-400">
-                        {t("subtitle")}
-                    </p>
-                </div>
-                <ModalAddedComplex onSuccess={handleRefresh} />
-            </div>
+            <PageHeader
+                title={t("title")}
+                description={t("subtitle")}
+                actions={<ModalAddedComplex onSuccess={handleRefresh} />}
+            />
 
             <ComplexFiltersBar
                 sortBy={sortBy}
@@ -177,20 +161,20 @@ const TableObjects: React.FC<TableComplexProps> = ({ initialComplex }) => {
             />
 
             {filteredAndSorted.length === 0 ? (
-                <div className="text-center py-20 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
-                    <ImFileEmpty size={40} className="mx-auto text-gray-300 mb-3" />
-                    <p className="text-gray-500 text-sm font-medium">{t("nothing_found")}</p>
-                    <p className="text-xs text-gray-400 mt-1">{tc("try_change_filters")}</p>
-                </div>
+                <EmptyState
+                    icon={SearchX}
+                    title={t("nothing_found")}
+                    description={tc("try_change_filters")}
+                />
             ) : (
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-4">
                     {currentItems.map((item) => (
                         <ComplexCard key={item.id} complex={item} />
                     ))}
                 </div>
             )}
 
-            <div className="mt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-[13px] text-gray-500">
+            <div className="mt-6 flex flex-col items-center justify-between gap-3 text-[13px] text-slate-500 sm:flex-row">
                 <p>
                     {t("shown_of", {
                         from: filteredAndSorted.length > 0 ? startIndex + 1 : 0,
@@ -198,38 +182,7 @@ const TableObjects: React.FC<TableComplexProps> = ({ initialComplex }) => {
                         total: filteredAndSorted.length,
                     })}
                 </p>
-
-                {totalPages > 1 && (
-                    <div className="flex items-center gap-1">
-                        <button
-                            disabled={currentPage === 1}
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            className="px-2 py-1 text-gray-400 disabled:opacity-30 hover:text-indigo-600 transition-colors"
-                        >
-                            ‹
-                        </button>
-                        {paginationPages.map((p) => (
-                            <button
-                                key={p}
-                                onClick={() => handlePageChange(p)}
-                                className={`px-3 py-1 rounded-lg text-[12px] font-semibold transition-all ${
-                                    p === currentPage
-                                        ? "bg-indigo-600 text-white"
-                                        : "text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                                {p}
-                            </button>
-                        ))}
-                        <button
-                            disabled={currentPage === totalPages || totalPages === 0}
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            className="px-2 py-1 text-gray-400 disabled:opacity-30 hover:text-indigo-600 transition-colors"
-                        >
-                            ›
-                        </button>
-                    </div>
-                )}
+                <Pagination page={currentPage} totalPages={totalPages} onChange={handlePageChange} />
             </div>
         </section>
     );

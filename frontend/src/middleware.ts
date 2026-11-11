@@ -37,7 +37,7 @@ export function middleware(req: NextRequest) {
     }
 
     if (isAuthPage && accessToken && !isTokenExpired(accessToken)) {
-        return NextResponse.redirect(new URL("/complex", req.url));
+        return NextResponse.redirect(new URL("/", req.url));
     }
 
     return NextResponse.next();

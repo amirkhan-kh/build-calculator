@@ -12,6 +12,16 @@ import {
 	DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Field } from "@/components/shared/kit/field";
+import { Segmented } from "@/components/shared/kit/segmented";
+import { Loader2, Plus } from "lucide-react";
 import type { IComplex } from "@/types/complex.types";
 import { FC, useState } from "react";
 import { toast } from "sonner";
@@ -44,9 +54,7 @@ export const ModalAddedBuilding: FC<ModalProps> = ({
 		complex_id: defaultComplexId ? String(defaultComplexId) : "",
 	});
 
-	const handleChange = (
-		e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-	) => {
+	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = e.target;
 		if (name === "max_coefficient") {
 			if (value === "") {
@@ -110,54 +118,58 @@ export const ModalAddedBuilding: FC<ModalProps> = ({
 		}
 	};
 
+	const pending = createMutation.isPending;
+
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<button className="bg-indigo-600 px-4 py-2 rounded-xl text-white text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+				<Button>
+					<Plus />
 					{t("add_btn")}
-				</button>
+				</Button>
 			</DialogTrigger>
-			<DialogContent className="max-w-4xl">
+			<DialogContent className="max-w-xl">
 				<DialogHeader>
 					<DialogTitle>{t("add_title")}</DialogTitle>
 				</DialogHeader>
-				<form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4 py-4">
+				<form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					{!defaultComplexId && (
-						<div className="space-y-2">
-							<label className="text-sm font-medium">{t("complex_label")}</label>
-							<select
-								name="complex_id"
+						<Field label={t("complex_label")} required className="sm:col-span-2">
+							<Select
 								value={formData.complex_id}
-								onChange={handleChange}
-								required
-								disabled={createMutation.isPending}
-								className="w-full h-10 border rounded px-3 bg-white"
+								onValueChange={(v) => setFormData((prev) => ({ ...prev, complex_id: v }))}
+								disabled={pending}
 							>
-								<option value="">{t("select_complex")}</option>
-								{complexes.map((item) => (
-									<option key={item.id} value={item.id}>
-										{item.name}
-									</option>
-								))}
-							</select>
-						</div>
+								<SelectTrigger>
+									<SelectValue placeholder={t("select_complex")} />
+								</SelectTrigger>
+								<SelectContent>
+									{complexes.map((item) => (
+										<SelectItem key={item.id} value={String(item.id)}>
+											{item.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</Field>
 					)}
 
-					<div className="space-y-2">
-						<label className="text-sm font-medium">{t("name_label")}</label>
+					<Field label={t("name_label")} htmlFor="building-name" required className="sm:col-span-2">
 						<Input
+							id="building-name"
 							name="name"
 							value={formData.name}
 							onChange={handleChange}
 							placeholder={t("enter_name")}
 							required
-							disabled={createMutation.isPending}
+							disabled={pending}
+							autoFocus
 						/>
-					</div>
+					</Field>
 
-					<div className="space-y-2">
-						<label className="text-sm font-medium">{t("floors_label")}</label>
+					<Field label={t("floors_label")} htmlFor="building-floors" required>
 						<Input
+							id="building-floors"
 							name="floor_count"
 							type="text"
 							inputMode="numeric"
@@ -165,29 +177,13 @@ export const ModalAddedBuilding: FC<ModalProps> = ({
 							onChange={handleChange}
 							placeholder="5"
 							required
-							disabled={createMutation.isPending}
+							disabled={pending}
 						/>
-					</div>
+					</Field>
 
-					<div className="space-y-2">
-						<label className="text-sm font-medium">{t("base_price_label")}</label>
+					<Field label={t("max_coef_label")} htmlFor="building-coef" required>
 						<Input
-							name="base_price"
-							type="number"
-							min="0"
-							step="0.01"
-							value={formData.base_price}
-							onChange={handleChange}
-							placeholder="1000000"
-							required
-							disabled={createMutation.isPending}
-						/>
-					</div>
-					<div className="space-y-2">
-						<label className="text-sm font-medium">
-							{t("max_coef_label")}
-						</label>
-						<Input
+							id="building-coef"
 							name="max_coefficient"
 							type="text"
 							inputMode="decimal"
@@ -195,43 +191,50 @@ export const ModalAddedBuilding: FC<ModalProps> = ({
 							onChange={handleChange}
 							placeholder="1.5"
 							required
-							disabled={createMutation.isPending}
+							disabled={pending}
 						/>
-					</div>
+					</Field>
 
-					<div className="space-y-2">
-						<label className="text-sm font-medium">{t("currency_label")}</label>
-						<select
-							name="price_unit"
-							value={formData.price_unit}
-							onChange={handleChange}
-							className="w-full h-10 border rounded px-3 bg-white"
-							disabled={createMutation.isPending}
+					<Field label={t("base_price_label")} htmlFor="building-price" required className="sm:col-span-2">
+						<div className="flex gap-2">
+							<Input
+								id="building-price"
+								name="base_price"
+								type="number"
+								min="0"
+								step="0.01"
+								value={formData.base_price}
+								onChange={handleChange}
+								placeholder="1000000"
+								required
+								disabled={pending}
+								className="flex-1"
+							/>
+							<Segmented
+								value={formData.price_unit}
+								onChange={(v) => setFormData((prev) => ({ ...prev, price_unit: v }))}
+								options={[
+									{ value: "UZS", label: "UZS" },
+									{ value: "USD", label: "USD" },
+								]}
+							/>
+						</div>
+					</Field>
+
+					<DialogFooter className="pt-2 sm:col-span-2">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setOpen(false)}
+							disabled={pending}
 						>
-							<option value="UZS">UZS</option>
-							<option value="USD">USD</option>
-						</select>
-					</div>
-
-					<div className="col-span-2">
-						<DialogFooter className="flex gap-3 pt-4 border-t">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => setOpen(false)}
-								disabled={createMutation.isPending}
-							>
-								{tc("cancel")}
-							</Button>
-							<Button
-								type="submit"
-								disabled={createMutation.isPending}
-								className="bg-[#282964] hover:bg-[#1f2050] text-white"
-							>
-								{createMutation.isPending ? tc("adding") : tc("add")}
-							</Button>
-						</DialogFooter>
-					</div>
+							{tc("cancel")}
+						</Button>
+						<Button type="submit" disabled={pending}>
+							{pending && <Loader2 className="animate-spin" />}
+							{pending ? tc("adding") : tc("add")}
+						</Button>
+					</DialogFooter>
 				</form>
 			</DialogContent>
 		</Dialog>

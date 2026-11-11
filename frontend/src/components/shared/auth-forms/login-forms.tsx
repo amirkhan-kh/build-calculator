@@ -1,26 +1,27 @@
 "use client";
 
 import { useState, FormEvent } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, LogIn, User } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/shared/kit/field";
 import { useLogin } from "@/action/hooks/login-hook/useLogin";
 
 export function LoginForm() {
 	const router = useRouter();
 	const t = useTranslations("auth");
 
-	const [username, setUsername] = useState<string>("");
-	const [password, setPassword] = useState<string>("");
-	const [showPassword, setShowPassword] = useState<boolean>(false);
+	const [username, setUsername] = useState("");
+	const [password, setPassword] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
 
 	const { mutate, isPending } = useLogin();
 
 	const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-
 		mutate(
 			{ username, password },
 			{
@@ -38,50 +39,54 @@ export function LoginForm() {
 	};
 
 	return (
-		<form onSubmit={handleSubmit} className="space-y-4 w-80">
-			<div>
-				<label className="block text-sm font-medium mb-2">
-					{t("username")}
-				</label>
-				<Input
-					placeholder={t("username")}
-					value={username}
-					onChange={(e) => setUsername(e.target.value)}
-					className="w-full p-2 bg-indigo-50"
-					required
-					disabled={isPending}
-				/>
-			</div>
-
-			<div>
-				<label className="block text-sm font-medium mb-2">{t("password")}</label>
+		<form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
+			<Field label={t("username")} htmlFor="login-username">
 				<div className="relative">
+					<User size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
 					<Input
-						placeholder={t("password")}
+						id="login-username"
+						name="username"
+						type="text"
+						autoComplete="username"
+						autoFocus
+						value={username}
+						onChange={(e) => setUsername(e.target.value)}
+						className="h-11 pl-9"
+						required
+						disabled={isPending}
+					/>
+				</div>
+			</Field>
+
+			<Field label={t("password")} htmlFor="login-password">
+				<div className="relative">
+					<Lock size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+					<Input
+						id="login-password"
+						name="password"
 						type={showPassword ? "text" : "password"}
+						autoComplete="current-password"
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
-						className="w-full p-2 bg-indigo-50"
+						className="h-11 pl-9 pr-11"
 						required
 						disabled={isPending}
 					/>
 					<button
 						type="button"
 						onClick={() => setShowPassword((v) => !v)}
-						className="absolute right-2 top-1/2 -translate-y-1/2"
+						className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+						tabIndex={-1}
 					>
-						{showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+						{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
 					</button>
 				</div>
-			</div>
+			</Field>
 
-			<button
-				type="submit"
-				disabled={isPending}
-				className=" bg-indigo-900 text-white px-3 py-1 rounded-[3px] hover:bg-indigo-800 disabled:bg-gray-400"
-			>
+			<Button type="submit" size="lg" disabled={isPending} className="mt-2 h-11 w-full">
+				{isPending ? <Loader2 className="animate-spin" /> : <LogIn />}
 				{isPending ? t("logging_in") : t("login")}
-			</button>
+			</Button>
 		</form>
 	);
 }

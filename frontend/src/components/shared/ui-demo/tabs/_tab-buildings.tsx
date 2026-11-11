@@ -1,7 +1,16 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import {
+	Building,
+	DoorOpen,
+	Layers3,
+	LayoutGrid,
+	Percent,
+	TrendingUp,
+	Wallet,
+} from "lucide-react";
+import { BackLink } from "@/components/shared/kit/back-link";
+import { formatNumber } from "@/lib/format";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslations } from "next-intl";
 import { ModalUpdateBuildings } from "../modals/building-modals/modal-update-buildings/_modal-update-building";
@@ -9,9 +18,6 @@ import { ModalDeleteBuildings } from "../modals/building-modals/modal-delete-bui
 import { ModalAddedCoefficient } from "../modals/building-modals/modal-add-coefficient/_modal-add-coefficient";
 import { LayoutsTab } from "./layouts-tab/_layouts-tab";
 import { ApartmentsTab } from "./apartments-tab/_apartments-tab";
-import { FaRegBuilding } from "react-icons/fa";
-import { MdOutlineBarChart } from "react-icons/md";
-import { GrMoney } from "react-icons/gr";
 import { useRouter } from "next/navigation";
 import type { TabsProps } from "@/types/props.types";
 
@@ -28,77 +34,75 @@ export function TabsDemoBuildings({ initialBuilding, allComplexes }: TabsProps) 
 		(c) => c.id === initialBuilding.complex_id,
 	);
 
+	const stats = [
+		{ icon: Layers3, label: tb("floors_stat"), value: initialBuilding.floor_count },
+		{ icon: TrendingUp, label: tb("max_coef_stat"), value: initialBuilding.max_coefficient },
+		{
+			icon: Wallet,
+			label: tb("price_m2_stat"),
+			value: formatNumber(initialBuilding.base_price),
+			unit: initialBuilding.price_unit,
+		},
+	];
+
 	return (
 		<div>
-			<Link
-				href={buildingComplex ? `/complex/${buildingComplex.id}` : "/"}
-				className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-400 hover:text-indigo-600 transition-colors mb-4"
-			>
-				<ArrowLeft size={16} />
+			<BackLink href={buildingComplex ? `/complex/${buildingComplex.id}` : "/"}>
 				{buildingComplex ? buildingComplex.name : tb("all_buildings")}
-			</Link>
+			</BackLink>
 
-			<div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-				<div>
-					<span className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">
-						{buildingComplex?.name ?? tb("title")}
-					</span>
-					<h1 className="text-2xl font-black text-gray-900 capitalize mt-0.5">
-						{initialBuilding.name}
-					</h1>
-				</div>
-				<div className="flex gap-2 shrink-0">
-					<ModalUpdateBuildings
-						building={initialBuilding}
-						onSuccess={handleSuccess}
-					/>
-					<ModalDeleteBuildings
-						buildingId={initialBuilding.id}
-						complexId={Number(initialBuilding.complex_id)}
-					/>
-				</div>
-			</div>
-
-			<div className="grid grid-cols-3 gap-4 mb-6">
-				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex items-center gap-3">
-					<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50">
-						<FaRegBuilding className="text-indigo-500" size={18} />
+			<div className="glass mb-6 rounded-2xl p-5">
+				<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+					<div className="flex min-w-0 items-center gap-3.5">
+						<div className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary text-white shadow-sm shadow-ink/20">
+							<Building size={22} strokeWidth={1.75} />
+						</div>
+						<div className="min-w-0">
+							<p className="eyebrow">{buildingComplex?.name ?? tb("title")}</p>
+							<h1 className="mt-0.5 truncate text-2xl font-semibold tracking-tight text-slate-900">
+								{initialBuilding.name}
+							</h1>
+						</div>
 					</div>
-					<div>
-						<p className="text-[10px] font-bold uppercase text-gray-400">{tb("floors_stat")}</p>
-						<p className="text-2xl font-black text-gray-900">{initialBuilding.floor_count}</p>
+					<div className="flex shrink-0 items-center gap-1.5">
+						<ModalUpdateBuildings building={initialBuilding} onSuccess={handleSuccess} />
+						<ModalDeleteBuildings
+							buildingId={initialBuilding.id}
+							complexId={Number(initialBuilding.complex_id)}
+						/>
 					</div>
 				</div>
 
-				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex items-center gap-3">
-					<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50">
-						<MdOutlineBarChart className="text-indigo-500" size={18} />
-					</div>
-					<div>
-						<p className="text-[10px] font-bold uppercase text-gray-400">{tb("max_coef_stat")}</p>
-						<p className="text-2xl font-black text-gray-900">{initialBuilding.max_coefficient}</p>
-					</div>
-				</div>
-
-				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex items-center gap-3">
-					<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50">
-						<GrMoney className="text-indigo-500" size={16} />
-					</div>
-					<div className="min-w-0">
-						<p className="text-[10px] font-bold uppercase text-gray-400">{tb("price_m2_stat")}</p>
-						<p className="text-lg font-black text-gray-900 truncate">
-							{Number(initialBuilding.base_price).toLocaleString()}{" "}
-							<span className="text-xs font-medium text-gray-400">{initialBuilding.price_unit}</span>
-						</p>
-					</div>
-				</div>
+				<dl className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+					{stats.map(({ icon: Icon, label, value, unit }) => (
+						<div key={label} className="flex items-center gap-3 rounded-xl border border-slate-200/70 bg-white/70 px-4 py-3">
+							<Icon size={18} className="shrink-0 text-indigo-400" strokeWidth={1.75} />
+							<div className="min-w-0">
+								<dt className="text-xs text-slate-500">{label}</dt>
+								<dd className="truncate text-lg font-semibold tabular-nums text-slate-900">
+									{value}
+									{unit && <span className="ml-1 text-xs font-medium text-slate-400">{unit}</span>}
+								</dd>
+							</div>
+						</div>
+					))}
+				</dl>
 			</div>
 
 			<Tabs defaultValue="apartments" className="w-full">
-				<TabsList className="mb-4">
-					<TabsTrigger value="apartments">{t("apartments")}</TabsTrigger>
-					<TabsTrigger value="layouts">{t("layouts")}</TabsTrigger>
-					<TabsTrigger value="coefficients">{t("coefficients")}</TabsTrigger>
+				<TabsList>
+					<TabsTrigger value="apartments">
+						<DoorOpen />
+						{t("apartments")}
+					</TabsTrigger>
+					<TabsTrigger value="layouts">
+						<LayoutGrid />
+						{t("layouts")}
+					</TabsTrigger>
+					<TabsTrigger value="coefficients">
+						<Percent />
+						{t("coefficients")}
+					</TabsTrigger>
 				</TabsList>
 
 				<TabsContent value="apartments">

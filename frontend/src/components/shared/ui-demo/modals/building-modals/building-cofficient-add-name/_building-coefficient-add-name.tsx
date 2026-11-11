@@ -4,11 +4,15 @@ import { useCreateCoefficient } from "@/action/hooks/coefficient-hook/create-coe
 import {
 	Dialog,
 	DialogContent,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/shared/kit/field";
+import { Loader2, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -28,7 +32,8 @@ export const ModalAddedCoefficientName = ({
 	const t = useTranslations("coefficient");
 	const tc = useTranslations("common");
 
-	const handleCreateCoefficient = () => {
+	const handleCreateCoefficient = (e?: React.FormEvent) => {
+		e?.preventDefault();
 		const trimmedName = coefficientName.trim();
 		if (!trimmedName) {
 			toast.error(t("enter_name_error"));
@@ -57,39 +62,37 @@ export const ModalAddedCoefficientName = ({
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<button className="bg-[#46479f] px-3 py-1 rounded text-white text-sm hover:bg-[#1f2050] transition-colors">
+				<Button>
+					<Plus />
 					{t("add_name_btn")}
-				</button>
+				</Button>
 			</DialogTrigger>
-			<DialogContent className="w-md">
+			<DialogContent className="max-w-sm">
 				<DialogHeader>
-					<DialogTitle />
+					<DialogTitle>{t("add_name_title")}</DialogTitle>
 				</DialogHeader>
 
-				<div className="space-y-6">
-					<label className="text-sm font-medium">{t("name_label")}</label>
-					<Input
-						value={coefficientName}
-						onChange={(e) => setCoefficientName(e.target.value)}
-						placeholder={t("name_placeholder")}
-						className="bg-white w-full"
-						onKeyDown={(e) => {
-							if (e.key === "Enter" && !isPending) {
-								handleCreateCoefficient();
-							}
-						}}
-						disabled={isPending}
-					/>
-					<div className="flex justify-end">
-						<button
-							className="bg-[#46479f] text-white rounded-sm h-9 px-4 hover:bg-[#3a3b8a] transition-colors disabled:opacity-50"
-							onClick={handleCreateCoefficient}
-							disabled={isPending || !coefficientName.trim()}
-						>
-							{isPending ? tc("creating") : t("create_btn")}
-						</button>
-					</div>
-				</div>
+				<form onSubmit={handleCreateCoefficient} className="flex flex-col gap-4">
+					<Field label={t("name_label")} htmlFor="coef-group-name" required>
+						<Input
+							id="coef-group-name"
+							value={coefficientName}
+							onChange={(e) => setCoefficientName(e.target.value)}
+							placeholder={t("name_placeholder")}
+							disabled={isPending}
+							autoFocus
+						/>
+					</Field>
+					<DialogFooter className="pt-1">
+						<Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+							{tc("cancel")}
+						</Button>
+						<Button type="submit" disabled={isPending || !coefficientName.trim()}>
+							{isPending && <Loader2 className="animate-spin" />}
+							{isPending ? tc("creating") : tc("create")}
+						</Button>
+					</DialogFooter>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);

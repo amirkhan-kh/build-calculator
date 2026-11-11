@@ -2,10 +2,16 @@
 import {
 	Dialog,
 	DialogContent,
+	DialogFooter,
+	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/shared/kit/field";
+import { Loader2, Pencil } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -21,6 +27,14 @@ const ModalUpdateComplex = ({ complex }: { complex: IComplex }) => {
 	const tc = useTranslations("common");
 
 	const { mutate, isPending } = useUpdateComplex();
+
+	const handleOpenChange = (next: boolean) => {
+		setOpen(next);
+		if (next) {
+			setName(complex.name);
+			setDescription(complex.description || "");
+		}
+	};
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -43,41 +57,54 @@ const ModalUpdateComplex = ({ complex }: { complex: IComplex }) => {
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={setOpen}>
+		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
-				<button className="bg-gradient-to-br from-indigo-100 to-white px-2 py-1 rounded-[3px] leading-5">
+				<Button variant="outline" size="sm">
+					<Pencil />
 					{tc("change")}
-				</button>
+				</Button>
 			</DialogTrigger>
 
-			<DialogContent className="w-md">
-				<DialogTitle className="text-lg font-semibold  mb-4">
-					{t("update_title")}
-				</DialogTitle>
+			<DialogContent className="max-w-md">
+				<DialogHeader>
+					<DialogTitle>{t("update_title")}</DialogTitle>
+				</DialogHeader>
 
-				<form
-					onSubmit={handleSubmit}
-					className="flex flex-col gap-4 items-start"
-				>
-					<Input
-						placeholder={t("name_placeholder")}
-						value={name}
-						onChange={(e) => setName(e.target.value)}
-						required
-					/>
+				<form onSubmit={handleSubmit} className="flex flex-col gap-4">
+					<Field label={t("name_label")} htmlFor="complex-name" required>
+						<Input
+							id="complex-name"
+							placeholder={t("name_placeholder")}
+							value={name}
+							onChange={(e) => setName(e.target.value)}
+							required
+						/>
+					</Field>
 
-					<Input
-						placeholder={tc("description")}
-						value={description}
-						onChange={(e) => setDescription(e.target.value)}
-					/>
+					<Field label={tc("description")} htmlFor="complex-description">
+						<Textarea
+							id="complex-description"
+							rows={3}
+							placeholder={tc("description")}
+							value={description}
+							onChange={(e) => setDescription(e.target.value)}
+						/>
+					</Field>
 
-					<button
-						disabled={isPending}
-						className="bg-indigo-900 text-white py-1 px-3 rounded-sm disabled:opacity-50"
-					>
-						{isPending ? tc("saving") : tc("save")}
-					</button>
+					<DialogFooter className="pt-2">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => setOpen(false)}
+							disabled={isPending}
+						>
+							{tc("cancel")}
+						</Button>
+						<Button type="submit" disabled={isPending || !name.trim()}>
+							{isPending && <Loader2 className="animate-spin" />}
+							{isPending ? tc("saving") : tc("save")}
+						</Button>
+					</DialogFooter>
 				</form>
 			</DialogContent>
 		</Dialog>

@@ -5,24 +5,22 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Field } from "@/components/shared/kit/field";
 import { IFirm } from "@/types/firm.types";
+import { Loader2, Pencil, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
+import { generatePassword } from "../modal-add-firm/_modal-add-firm";
 
-export function ModalEditFirm({
-	firm,
-	onSuccess,
-}: {
-	firm: IFirm;
-	onSuccess?: () => void;
-}) {
+export function ModalEditFirm({ firm, onSuccess }: { firm: IFirm; onSuccess?: () => void }) {
 	const [open, setOpen] = useState(false);
 	const [username, setUsername] = useState(firm.username);
 	const [password, setPassword] = useState(firm.password);
@@ -37,15 +35,12 @@ export function ModalEditFirm({
 			return;
 		}
 		try {
-			await mutateAsync({
-				id: firm.id,
-				data: { username: username.trim(), password },
-			});
+			await mutateAsync({ id: firm.id, data: { username: username.trim(), password } });
 			toast.success(t("updated_success"));
 			setOpen(false);
 			onSuccess?.();
-		} catch (error) {
-			toast.error(error instanceof Error ? error.message : t("update_error"));
+		} catch {
+			/* surfaced by useUpdateFirm */
 		}
 	};
 
@@ -61,51 +56,62 @@ export function ModalEditFirm({
 			}}
 		>
 			<DialogTrigger asChild>
-				<button className="bg-gradient-to-br from-indigo-100 to-white px-2 py-1 rounded-[3px] leading-5 text-sm">
-					{tc("change")}
+				<button
+					type="button"
+					className="grid size-8 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+					title={tc("edit")}
+					aria-label={tc("edit")}
+				>
+					<Pencil size={15} />
 				</button>
 			</DialogTrigger>
-			<DialogContent className="max-w-96">
+			<DialogContent className="max-w-md">
 				<DialogHeader>
 					<DialogTitle>{t("edit_title")}</DialogTitle>
+					<DialogDescription>{firm.name}</DialogDescription>
 				</DialogHeader>
-				<form onSubmit={handleSubmit} className="space-y-4 py-4">
-					<p className="text-sm text-gray-500">
-						{t("name_label")}: <span className="font-medium text-gray-800">{firm.name}</span>
-					</p>
-					<div className="space-y-2">
-						<label className="text-sm font-medium">{t("login_label")} *</label>
-						<Input
-							value={username}
-							onChange={(e) => setUsername(e.target.value)}
-							disabled={isPending}
-							required
-						/>
-					</div>
-					<div className="space-y-2">
-						<label className="text-sm font-medium">{t("password_label")} *</label>
-						<Input
-							type="text"
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							disabled={isPending}
-							required
-						/>
+				<form onSubmit={handleSubmit} className="flex flex-col gap-5">
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+						<Field label={t("login_label")} htmlFor={`firm-login-${firm.id}`} required>
+							<Input
+								id={`firm-login-${firm.id}`}
+								autoComplete="off"
+								value={username}
+								onChange={(e) => setUsername(e.target.value)}
+								disabled={isPending}
+								className="font-mono"
+								required
+							/>
+						</Field>
+						<Field label={t("password_label")} htmlFor={`firm-password-${firm.id}`} required>
+							<div className="relative">
+								<Input
+									id={`firm-password-${firm.id}`}
+									autoComplete="off"
+									value={password}
+									onChange={(e) => setPassword(e.target.value)}
+									disabled={isPending}
+									className="pr-10 font-mono"
+									required
+								/>
+								<button
+									type="button"
+									onClick={() => setPassword(generatePassword())}
+									className="absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+									title={t("generate_password")}
+									aria-label={t("generate_password")}
+								>
+									<RefreshCw size={14} />
+								</button>
+							</div>
+						</Field>
 					</div>
 					<DialogFooter>
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => setOpen(false)}
-							disabled={isPending}
-						>
+						<Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
 							{tc("cancel")}
 						</Button>
-						<Button
-							type="submit"
-							disabled={isPending}
-							className="bg-[#282964] hover:bg-[#1f2050]"
-						>
+						<Button type="submit" disabled={isPending}>
+							{isPending && <Loader2 className="animate-spin" />}
 							{isPending ? tc("saving") : tc("save")}
 						</Button>
 					</DialogFooter>

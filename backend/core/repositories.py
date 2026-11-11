@@ -26,6 +26,8 @@ class BaseRepository:
             stmt = filters.filter(stmt)
 
         if page:
+            if hasattr(model, "id"):
+                stmt = stmt.order_by(model.id)
             stmt = stmt.limit(page["limit"]).offset(page["offset"])
 
         query = await self.db.execute(stmt)

@@ -55,6 +55,7 @@ server {
 
     # MinIO'dagi ochiq fayllar: /media/<bucket>/<key> (backend shu formatda URL yasaydi)
     location /media/ {
+        rewrite ^/media/(.+)/$ /media/$1 last;
         proxy_pass http://minio:9000/;
         proxy_set_header Host minio:9000;
         proxy_hide_header Set-Cookie;
