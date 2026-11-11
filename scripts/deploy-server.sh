@@ -16,7 +16,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$PROJECT_DIR/.env"
 COMPOSE=(docker compose -f "$PROJECT_DIR/docker-compose.server.yml")
-SUPERUSER_FLAG="$PROJECT_DIR/.superuser_created"
 EDGE_NETWORK="edge"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -89,6 +88,10 @@ DATABASE_URL=postgresql://calculator_user:${db_pass}@postgres:5432/calculator_db
 ASYNC_DATABASE_URL=postgresql+asyncpg://calculator_user:${db_pass}@postgres:5432/calculator_db
 
 SECRET_KEY=${secret_key}
+
+# Platforma admin (firmalar kabineti). O'zgartirsangiz, deploy'dan keyin yangi qiymat ishlaydi
+PLATFORM_ADMIN_USERNAME=admin
+PLATFORM_ADMIN_PASSWORD=admin123
 
 # Vergul bilan bir nechta domen yozish mumkin (custom domen ulasangiz shu yerga qo'shing)
 ALLOWED_ORIGINS=${FRONTEND_URL}
@@ -188,16 +191,6 @@ wait_for_api() {
   error "API 2 daqiqada javob bermadi. Loglar: docker logs calc-api --tail=100 ; docker logs calc-migrate"
 }
 
-create_superuser() {
-  [[ -f "$SUPERUSER_FLAG" ]] && return
-  [[ -t 0 ]] || { warn "Terminal interaktiv emas — superuser keyin yaratiladi"; return; }
-
-  step "Superuser yaratish"
-  docker exec -it calc-api python scripts/create_superuser.py
-  touch "$SUPERUSER_FLAG"
-  success "Superuser yaratildi"
-}
-
 print_caddy_hint() {
   echo -e "  ${BOLD}Tashqi proxy rejimi.${RESET} Caddy konteyneri '${EDGE_NETWORK}' tarmog'ida bo'lishi va"
   echo -e "  Caddyfile'da quyidagi blok bo'lishi kerak:"
@@ -226,6 +219,7 @@ show_status() {
   echo ""
   [[ "$PROXY_MODE" == "external" ]] && print_caddy_hint
   echo -e "${GREEN}${BOLD}Backend tayyor!${RESET}"
+  echo -e "  Firmalar kabineti: login ${CYAN}${PLATFORM_ADMIN_USERNAME:-admin}${RESET}, parol ${CYAN}${PLATFORM_ADMIN_PASSWORD:-admin123}${RESET}"
 
   if [[ "$PROXY_MODE" == "http" ]]; then
     local ip
@@ -271,7 +265,6 @@ main() {
 
   start_services
   wait_for_api
-  create_superuser
   show_status
 }
 

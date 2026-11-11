@@ -8,25 +8,44 @@ from permissions.models import Permission
 
 
 async def init_platform_admin(db: AsyncSession):
+    """Login/parol .env dagi PLATFORM_ADMIN_* dan olinadi va har ishga tushganda sinxronlanadi."""
     import core.models  # noqa: F401
     from auth.services.password_service import PasswordService
+    from core.config import PLATFORM_ADMIN_PASSWORD, PLATFORM_ADMIN_USERNAME
     from users.models import User
 
-    existing = await db.execute(select(User).where(User.username == "amir"))
-    if existing.scalar_one_or_none() is not None:
+    admin = (
+        await db.execute(select(User).where(User.is_platform_admin.is_(True)).order_by(User.id))
+    ).scalars().first()
+
+    if admin is None:
+        db.add(
+            User(
+                fullname="Platform Admin",
+                phone="+998000000000",
+                username=PLATFORM_ADMIN_USERNAME,
+                hashed_password=await PasswordService.hash_password(PLATFORM_ADMIN_PASSWORD),
+                is_superuser=True,
+                is_platform_admin=True,
+                firm_id=None,
+            )
+        )
+        await db.commit()
         return
 
-    user = User(
-        fullname="Amir",
-        phone="+998000000000",
-        username="amir",
-        hashed_password=await PasswordService.hash_password("2211webdev"),
-        is_superuser=True,
-        is_platform_admin=True,
-        firm_id=None,
-    )
-    db.add(user)
-    await db.commit()
+    changed = False
+    if admin.username != PLATFORM_ADMIN_USERNAME:
+        taken = (
+            await db.execute(select(User).where(User.username == PLATFORM_ADMIN_USERNAME))
+        ).scalar_one_or_none()
+        if taken is None:
+            admin.username = PLATFORM_ADMIN_USERNAME
+            changed = True
+    if not await PasswordService.verify_password(PLATFORM_ADMIN_PASSWORD, admin.hashed_password):
+        admin.hashed_password = await PasswordService.hash_password(PLATFORM_ADMIN_PASSWORD)
+        changed = True
+    if changed:
+        await db.commit()
 
 
 async def init_roles(db: AsyncSession):

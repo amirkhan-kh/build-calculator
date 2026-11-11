@@ -30,6 +30,10 @@ REFRESH_TIME = 10080    # 7 days
 
 MAX_FILE_SIZE = 5 * 1024 * 1024
 
+# Platforma admin (firmalar kabineti): faqat firmalarni boshqaradi
+PLATFORM_ADMIN_USERNAME = os.getenv("PLATFORM_ADMIN_USERNAME", "admin")
+PLATFORM_ADMIN_PASSWORD = os.getenv("PLATFORM_ADMIN_PASSWORD", "admin123")
+
 # MinIO / S3
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://minio:9000")
 MINIO_PUBLIC_URL = os.getenv("MINIO_PUBLIC_URL", "http://localhost:9000")
