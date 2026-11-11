@@ -5,6 +5,10 @@ name: calculator-server
 networks:
   internal:
     driver: bridge
+  # Serverdagi boshqa reverse proxy (masalan, Caddy) api/minio'ga shu tarmoq orqali ulanadi
+  edge:
+    name: edge
+    external: true
 
 volumes:
   db_data:
@@ -52,7 +56,7 @@ services:
     image: minio/minio:latest
     container_name: calc-minio
     restart: unless-stopped
-    networks: [internal]
+    networks: [internal, edge]
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
@@ -81,6 +85,7 @@ services:
     <<: *backend
     container_name: calc-api
     restart: unless-stopped
+    networks: [internal, edge]
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -110,7 +115,7 @@ services:
         condition: service_healthy
     command: ["celery", "-A", "celery_app.celery", "worker", "--loglevel=info", "--concurrency=2", "--time-limit=300"]
 
-  # Faqat TELEGRAM_BOT_TOKEN bo'lsa: .env ga COMPOSE_PROFILES=bot qo'shing
+  # Faqat .env da TELEGRAM_BOT_TOKEN bo'lsa ishga tushadi (deploy-server.sh hal qiladi)
   bot:
     <<: *backend
     container_name: calc-bot
@@ -121,10 +126,12 @@ services:
         condition: service_healthy
     command: ["python", "-m", "bot.app"]
 
+  # Faqat PROXY_MODE=nginx bo'lsa (80/443 bo'sh serverlar uchun)
   nginx:
     image: nginx:1.27-alpine
     container_name: calc-nginx
     restart: unless-stopped
+    profiles: [nginx]
     networks: [internal]
     ports:
       - "80:80"

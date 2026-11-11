@@ -2,6 +2,11 @@
 # =============================================================================
 # deploy-server.sh — Backend'ni serverga deploy qilish (frontend Vercelda)
 # Birinchi marta ham, yangilashda ham shu buyruq:  bash scripts/deploy-server.sh
+#
+# Ikki rejim (.env dagi PROXY_MODE):
+#   nginx    — 80/443 bo'sh: o'zimizning nginx + Let's Encrypt (certbot)
+#   external — 80/443 ni boshqa proxy (masalan, Caddy) egallagan: u "edge" docker
+#              tarmog'i orqali calc-api:8000 va calc-minio:9000 ga ulanadi
 # =============================================================================
 set -euo pipefail
 
@@ -10,6 +15,7 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$PROJECT_DIR/.env"
 COMPOSE=(docker compose -f "$PROJECT_DIR/docker-compose.server.yml")
 SUPERUSER_FLAG="$PROJECT_DIR/.superuser_created"
+EDGE_NETWORK="edge"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
@@ -22,11 +28,15 @@ step()    { echo -e "\n${BOLD}${BLUE}══════ $* ══════${R
 
 gen_secret() { openssl rand -hex "${1:-32}"; }
 
+port_busy_by_others() {
+  docker ps --format '{{.Names}}' | grep -qx calc-nginx && return 1
+  [[ -n "$(ss -Htln 'sport = :443' 2>/dev/null)" ]]
+}
+
 check_deps() {
   step "Kerakli dasturlarni tekshirish"
-  command -v docker  &>/dev/null || error "Docker o'rnatilmagan. Avval: sudo bash scripts/setup-vps.sh"
+  command -v docker  &>/dev/null || error "Docker o'rnatilmagan"
   docker compose version &>/dev/null || error "Docker Compose plugin o'rnatilmagan"
-  command -v certbot &>/dev/null || error "Certbot o'rnatilmagan. Avval: sudo bash scripts/setup-vps.sh"
   command -v openssl &>/dev/null || error "openssl topilmadi"
   success "Hammasi joyida"
 }
@@ -39,6 +49,12 @@ setup_env() {
     return
   fi
 
+  local proxy_mode="nginx" le_email=""
+  if port_busy_by_others; then
+    proxy_mode="external"
+    warn "443-port boshqa dastur (masalan, Caddy) tomonidan band — tashqi proxy rejimi"
+  fi
+
   read -rp "API domeni (masalan: api.mysite.uz): " API_DOMAIN
   [[ -z "$API_DOMAIN" ]] && error "Domen bo'sh bo'lishi mumkin emas"
 
@@ -46,8 +62,10 @@ setup_env() {
   [[ -z "$FRONTEND_URL" ]] && error "Frontend manzili bo'sh bo'lishi mumkin emas"
   FRONTEND_URL="${FRONTEND_URL%/}"
 
-  read -rp "Let's Encrypt uchun email: " LE_EMAIL
-  [[ -z "$LE_EMAIL" ]] && error "Email bo'sh bo'lishi mumkin emas"
+  if [[ "$proxy_mode" == "nginx" ]]; then
+    read -rp "Let's Encrypt uchun email: " le_email
+    [[ -z "$le_email" ]] && error "Email bo'sh bo'lishi mumkin emas"
+  fi
 
   local db_pass secret_key minio_pass
   db_pass="$(gen_secret 24)"
@@ -76,13 +94,13 @@ MINIO_ACCESS_KEY=calculator_minio
 MINIO_SECRET_KEY=${minio_pass}
 MINIO_BUCKET=calculator-media
 
+# Token qo'yilsa, keyingi deploy'da bot avtomatik ishga tushadi
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_BOT_USERNAME=
-# Bot token qo'yilsa, quyidagini oching:
-# COMPOSE_PROFILES=bot
 
 API_DOMAIN=${API_DOMAIN}
-LE_EMAIL=${LE_EMAIL}
+PROXY_MODE=${proxy_mode}
+LE_EMAIL=${le_email}
 EOF
 
   chmod 600 "$ENV_FILE"
@@ -100,8 +118,10 @@ check_dns() {
   fi
   if [[ -n "$server_ip" && "$server_ip" != "$domain_ip" ]]; then
     warn "${API_DOMAIN} → ${domain_ip}, lekin bu serverning IP'si ${server_ip}"
-    read -rp "Baribir davom etilsinmi? (y/N): " ans
-    [[ "$ans" =~ ^[Yy]$ ]] || exit 1
+    if [[ -t 0 ]]; then
+      read -rp "Baribir davom etilsinmi? (y/N): " ans
+      [[ "$ans" =~ ^[Yy]$ ]] || exit 1
+    fi
   else
     success "${API_DOMAIN} → ${domain_ip}"
   fi
@@ -109,6 +129,7 @@ check_dns() {
 
 setup_ssl() {
   step "SSL sertifikat (Let's Encrypt)"
+  command -v certbot &>/dev/null || error "Certbot o'rnatilmagan: sudo apt install -y certbot"
 
   if sudo test -d "/etc/letsencrypt/live/${API_DOMAIN}"; then
     success "Sertifikat allaqachon bor"
@@ -130,7 +151,12 @@ start_services() {
   step "Image'ni yig'ish va servislarni ishga tushirish"
   mkdir -p "$PROJECT_DIR/nginx/logs"
   cd "$PROJECT_DIR"
-  "${COMPOSE[@]}" up -d --build --remove-orphans
+
+  local profiles=()
+  [[ "$PROXY_MODE" == "nginx" ]] && profiles+=(--profile nginx)
+  [[ -n "${TELEGRAM_BOT_TOKEN:-}" ]] && profiles+=(--profile bot)
+
+  "${COMPOSE[@]}" "${profiles[@]}" up -d --build --remove-orphans
   docker image prune -f >/dev/null
   success "Servislar ishga tushdi"
 }
@@ -157,14 +183,38 @@ create_superuser() {
   success "Superuser yaratildi"
 }
 
+print_caddy_hint() {
+  echo -e "  ${BOLD}Tashqi proxy rejimi.${RESET} Caddy konteyneri '${EDGE_NETWORK}' tarmog'ida bo'lishi va"
+  echo -e "  Caddyfile'da quyidagi blok bo'lishi kerak:"
+  echo ""
+  echo -e "${YELLOW}${API_DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 20MB
+	}
+	handle_path /media/* {
+		rewrite * /${MINIO_BUCKET:-calculator-media}{uri}
+		reverse_proxy calc-minio:9000 {
+			header_up Host calc-minio:9000
+		}
+		header Cache-Control \"public, max-age=2592000\"
+	}
+	handle {
+		reverse_proxy calc-api:8000
+	}
+}${RESET}"
+  echo ""
+}
+
 show_status() {
   step "Holat"
   "${COMPOSE[@]}" ps
   echo ""
+  [[ "$PROXY_MODE" == "external" ]] && print_caddy_hint
   echo -e "${GREEN}${BOLD}Backend tayyor!${RESET}"
+  echo -e "  Ichki tekshiruv: ${CYAN}curl http://127.0.0.1:8000/health${RESET}"
   echo -e "  API:      ${CYAN}https://${API_DOMAIN}${RESET}"
   echo -e "  Swagger:  ${CYAN}https://${API_DOMAIN}/docs${RESET}"
-  echo -e "  Health:   ${CYAN}https://${API_DOMAIN}/health${RESET}"
   echo ""
   echo -e "  Vercel → Settings → Environment Variables:"
   echo -e "    ${YELLOW}NEXT_PUBLIC_API_URL=https://${API_DOMAIN}${RESET}"
@@ -179,8 +229,11 @@ main() {
 
   set -a; source "$ENV_FILE"; set +a
   [[ -z "${API_DOMAIN:-}" ]] && error ".env ichida API_DOMAIN yo'q"
+  PROXY_MODE="${PROXY_MODE:-nginx}"
 
-  if ! sudo test -d "/etc/letsencrypt/live/${API_DOMAIN}"; then
+  docker network inspect "$EDGE_NETWORK" &>/dev/null || docker network create "$EDGE_NETWORK" >/dev/null
+
+  if [[ "$PROXY_MODE" == "nginx" ]] && ! sudo test -d "/etc/letsencrypt/live/${API_DOMAIN}"; then
     check_dns
     setup_ssl
   fi

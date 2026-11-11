@@ -91,6 +91,25 @@ Skript so'raydi:
 
 Keyin o'zi: parollarni generatsiya qiladi (`.env`), SSL oladi, image'ni yig'adi, migratsiyalarni qo'llaydi va hamma servislarni ishga tushiradi. Oxirida **superuser** (login/parol) yaratishni so'raydi.
 
+### 3.4.1. Serverda 80/443 ni boshqa loyiha (Caddy) egallagan bo'lsa
+
+Skript buni o'zi aniqlaydi (`PROXY_MODE=external`): nginx va certbot ishlatilmaydi, `calc-api` va `calc-minio` esa `edge` docker tarmog'iga ulanadi. Mavjud Caddy'ni ham shu tarmoqqa ulash kerak:
+
+1. Boshqa loyihaning `docker-compose.yml` faylida, caddy servisiga `edge` tarmog'ini qo'shing. Agar servisda `networks:` bo'lmasa, `default` ni ham yozing, aks holda o'sha loyiha o'z backend'ini ko'rmay qoladi:
+
+   ```yaml
+   services:
+     caddy:
+       networks: [default, edge]
+
+   networks:
+     edge:
+       external: true
+   ```
+
+2. `Caddyfile` ga deploy skripti oxirida chiqargan blokni qo'shing (`api.mysite.uz { ... }`).
+3. O'sha loyiha papkasida: `docker compose up -d caddy`. Caddy SSL sertifikatni o'zi oladi.
+
 ### 3.5. Tekshiring
 
 - `https://api.mysite.uz/health` → `{"status":"ok"}`
