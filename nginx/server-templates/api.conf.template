@@ -53,9 +53,9 @@ server {
         proxy_pass http://api_backend;
     }
 
-    # MinIO'dagi ochiq fayllar (logo, planirovka rasmlari)
+    # MinIO'dagi ochiq fayllar: /media/<bucket>/<key> (backend shu formatda URL yasaydi)
     location /media/ {
-        proxy_pass http://minio:9000/${MINIO_BUCKET}/;
+        proxy_pass http://minio:9000/;
         proxy_set_header Host minio:9000;
         proxy_hide_header Set-Cookie;
         expires 30d;

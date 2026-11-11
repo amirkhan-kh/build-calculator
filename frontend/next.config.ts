@@ -14,6 +14,16 @@ const nextConfig: NextConfig = {
 	},
 	poweredByHeader: false,
 	typedRoutes: true,
+	// FastAPI routes end with "/", so /backend/... must not be normalized.
+	skipTrailingSlashRedirect: true,
+	rewrites: async () => {
+		const backend = process.env.BACKEND_ORIGIN?.replace(/\/$/, "");
+		if (!backend) return [];
+		return [
+			{ source: "/backend/:path+/", destination: `${backend}/:path+/` },
+			{ source: "/backend/:path*", destination: `${backend}/:path*` },
+		];
+	},
 	// Docker image uses standalone. Vercel builds its own output.
 	...(process.env.VERCEL ? {} : { output: "standalone" as const }),
 	transpilePackages: ["@t3-oss/env-nextjs", "@t3-oss/env-core"],

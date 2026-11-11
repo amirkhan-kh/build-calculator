@@ -91,6 +91,18 @@ Skript so'raydi:
 
 Keyin o'zi: parollarni generatsiya qiladi (`.env`), SSL oladi, image'ni yig'adi, migratsiyalarni qo'llaydi va hamma servislarni ishga tushiradi. Oxirida **superuser** (login/parol) yaratishni so'raydi.
 
+### 3.4.0. Domen yo'q bo'lsa
+
+Skript domen so'raganda shunchaki **Enter** bosing (`PROXY_MODE=http`). API serverning `8080` portida HTTP orqali ishlaydi. Brauzer esa unga Vercel orqali murojaat qiladi: `https://<app>.vercel.app/backend/...`. Shu tufayli HTTPS ham, CORS ham muammo bo'lmaydi. Vercel'da quyidagi o'zgaruvchilarni qo'ying:
+
+| Nomi | Qiymati |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | `/backend` |
+| `BACKEND_ORIGIN` | `http://SERVER_IP:8080` |
+| `SECURE_COOKIES` | `true` |
+
+Bu rejimning kamchiligi: Vercel va server orasidagi trafik shifrlanmagan. Keyinchalik domen olsangiz, `.env` ni o'chirib, skriptni domen bilan qayta ishga tushiring. Vercel'da esa `NEXT_PUBLIC_API_URL=https://api.domen` qilib, `BACKEND_ORIGIN` ni o'chiring.
+
 ### 3.4.1. Serverda 80/443 ni boshqa loyiha (Caddy) egallagan bo'lsa
 
 Skript buni o'zi aniqlaydi (`PROXY_MODE=external`): nginx va certbot ishlatilmaydi, `calc-api` va `calc-minio` esa `edge` docker tarmog'iga ulanadi. Mavjud Caddy'ni ham shu tarmoqqa ulash kerak:

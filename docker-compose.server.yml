@@ -137,12 +137,28 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      API_DOMAIN: ${API_DOMAIN}
-      MINIO_BUCKET: ${MINIO_BUCKET:-calculator-media}
+      API_DOMAIN: ${API_DOMAIN:-}
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/server-templates:/etc/nginx/templates:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Faqat PROXY_MODE=http bo'lsa (domen yo'q): Vercel /backend/* ni shu portga uzatadi
+  nginx-http:
+    image: nginx:1.27-alpine
+    container_name: calc-nginx-http
+    restart: unless-stopped
+    profiles: [http]
+    networks: [internal]
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/http-templates:/etc/nginx/templates:ro
       - ./nginx/logs:/var/log/nginx
     depends_on:
       api:

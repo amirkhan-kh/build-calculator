@@ -3,10 +3,12 @@
 # deploy-server.sh — Backend'ni serverga deploy qilish (frontend Vercelda)
 # Birinchi marta ham, yangilashda ham shu buyruq:  bash scripts/deploy-server.sh
 #
-# Ikki rejim (.env dagi PROXY_MODE):
-#   nginx    — 80/443 bo'sh: o'zimizning nginx + Let's Encrypt (certbot)
-#   external — 80/443 ni boshqa proxy (masalan, Caddy) egallagan: u "edge" docker
-#              tarmog'i orqali calc-api:8000 va calc-minio:9000 ga ulanadi
+# Rejimlar (.env dagi PROXY_MODE):
+#   http     — domen yo'q: nginx hostning 8080-portida (HTTP). Brauzer API'ga Vercel
+#              orqali (/backend/*) murojaat qiladi, Vercel so'rovni shu portga uzatadi
+#   nginx    — domen bor, 80/443 bo'sh: o'zimizning nginx + Let's Encrypt (certbot)
+#   external — domen bor, 80/443 ni boshqa proxy (masalan, Caddy) egallagan: u "edge"
+#              docker tarmog'i orqali calc-api:8000 va calc-minio:9000 ga ulanadi
 # =============================================================================
 set -euo pipefail
 
@@ -49,22 +51,27 @@ setup_env() {
     return
   fi
 
-  local proxy_mode="nginx" le_email=""
-  if port_busy_by_others; then
-    proxy_mode="external"
-    warn "443-port boshqa dastur (masalan, Caddy) tomonidan band — tashqi proxy rejimi"
-  fi
-
-  read -rp "API domeni (masalan: api.mysite.uz): " API_DOMAIN
-  [[ -z "$API_DOMAIN" ]] && error "Domen bo'sh bo'lishi mumkin emas"
+  local proxy_mode le_email="" media_url
+  read -rp "API domeni (domen bo'lmasa — shunchaki Enter bosing): " API_DOMAIN
 
   read -rp "Vercel frontend manzili (masalan: https://build-calculator.vercel.app): " FRONTEND_URL
   [[ -z "$FRONTEND_URL" ]] && error "Frontend manzili bo'sh bo'lishi mumkin emas"
   FRONTEND_URL="${FRONTEND_URL%/}"
 
-  if [[ "$proxy_mode" == "nginx" ]]; then
-    read -rp "Let's Encrypt uchun email: " le_email
-    [[ -z "$le_email" ]] && error "Email bo'sh bo'lishi mumkin emas"
+  if [[ -z "$API_DOMAIN" ]]; then
+    proxy_mode="http"
+    media_url="${FRONTEND_URL}/backend/media"
+    info "Domensiz rejim: API hostning 8080-portida, Vercel orqali ishlaydi"
+  else
+    media_url="https://${API_DOMAIN}/media"
+    if port_busy_by_others; then
+      proxy_mode="external"
+      warn "443-port boshqa dastur (masalan, Caddy) tomonidan band — tashqi proxy rejimi"
+    else
+      proxy_mode="nginx"
+      read -rp "Let's Encrypt uchun email: " le_email
+      [[ -z "$le_email" ]] && error "Email bo'sh bo'lishi mumkin emas"
+    fi
   fi
 
   local db_pass secret_key minio_pass
@@ -89,7 +96,7 @@ ALLOWED_ORIGINS=${FRONTEND_URL}
 ALLOWED_ORIGIN_REGEX=
 
 MINIO_ENDPOINT=http://minio:9000
-MINIO_PUBLIC_URL=https://${API_DOMAIN}/media
+MINIO_PUBLIC_URL=${media_url}
 MINIO_ACCESS_KEY=calculator_minio
 MINIO_SECRET_KEY=${minio_pass}
 MINIO_BUCKET=calculator-media
@@ -100,6 +107,7 @@ TELEGRAM_BOT_USERNAME=
 
 API_DOMAIN=${API_DOMAIN}
 PROXY_MODE=${proxy_mode}
+HTTP_PORT=8080
 LE_EMAIL=${le_email}
 EOF
 
@@ -154,6 +162,7 @@ start_services() {
 
   local profiles=()
   [[ "$PROXY_MODE" == "nginx" ]] && profiles+=(--profile nginx)
+  [[ "$PROXY_MODE" == "http" ]] && profiles+=(--profile http)
   [[ -n "${TELEGRAM_BOT_TOKEN:-}" ]] && profiles+=(--profile bot)
 
   "${COMPOSE[@]}" "${profiles[@]}" up -d --build --remove-orphans
@@ -166,6 +175,12 @@ wait_for_api() {
   for _ in $(seq 1 40); do
     if curl -sf http://127.0.0.1:8000/health &>/dev/null; then
       success "API ishlayapti"
+      if [[ "$PROXY_MODE" == "http" ]]; then
+        sleep 2
+        curl -sf "http://127.0.0.1:${HTTP_PORT:-8080}/health" &>/dev/null \
+          && success "nginx ${HTTP_PORT:-8080}-portda ishlayapti" \
+          || warn "nginx javob bermadi: docker logs calc-nginx-http"
+      fi
       return
     fi
     sleep 3
@@ -193,7 +208,6 @@ print_caddy_hint() {
 		max_size 20MB
 	}
 	handle_path /media/* {
-		rewrite * /${MINIO_BUCKET:-calculator-media}{uri}
 		reverse_proxy calc-minio:9000 {
 			header_up Host calc-minio:9000
 		}
@@ -212,13 +226,25 @@ show_status() {
   echo ""
   [[ "$PROXY_MODE" == "external" ]] && print_caddy_hint
   echo -e "${GREEN}${BOLD}Backend tayyor!${RESET}"
-  echo -e "  Ichki tekshiruv: ${CYAN}curl http://127.0.0.1:8000/health${RESET}"
-  echo -e "  API:      ${CYAN}https://${API_DOMAIN}${RESET}"
-  echo -e "  Swagger:  ${CYAN}https://${API_DOMAIN}/docs${RESET}"
-  echo ""
-  echo -e "  Vercel → Settings → Environment Variables:"
-  echo -e "    ${YELLOW}NEXT_PUBLIC_API_URL=https://${API_DOMAIN}${RESET}"
-  echo -e "    ${YELLOW}SECURE_COOKIES=true${RESET}"
+
+  if [[ "$PROXY_MODE" == "http" ]]; then
+    local ip
+    ip="$(curl -s4 --max-time 5 https://ifconfig.me || echo SERVER_IP)"
+    echo -e "  API:      ${CYAN}http://${ip}:${HTTP_PORT:-8080}${RESET}"
+    echo -e "  Swagger:  ${CYAN}http://${ip}:${HTTP_PORT:-8080}/docs${RESET}"
+    echo ""
+    echo -e "  Vercel → Settings → Environment Variables:"
+    echo -e "    ${YELLOW}NEXT_PUBLIC_API_URL=/backend${RESET}"
+    echo -e "    ${YELLOW}BACKEND_ORIGIN=http://${ip}:${HTTP_PORT:-8080}${RESET}"
+    echo -e "    ${YELLOW}SECURE_COOKIES=true${RESET}"
+  else
+    echo -e "  API:      ${CYAN}https://${API_DOMAIN}${RESET}"
+    echo -e "  Swagger:  ${CYAN}https://${API_DOMAIN}/docs${RESET}"
+    echo ""
+    echo -e "  Vercel → Settings → Environment Variables:"
+    echo -e "    ${YELLOW}NEXT_PUBLIC_API_URL=https://${API_DOMAIN}${RESET}"
+    echo -e "    ${YELLOW}SECURE_COOKIES=true${RESET}"
+  fi
   echo ""
 }
 
@@ -228,8 +254,13 @@ main() {
   setup_env
 
   set -a; source "$ENV_FILE"; set +a
-  [[ -z "${API_DOMAIN:-}" ]] && error ".env ichida API_DOMAIN yo'q"
   PROXY_MODE="${PROXY_MODE:-nginx}"
+  [[ "$PROXY_MODE" != "http" && -z "${API_DOMAIN:-}" ]] && error ".env ichida API_DOMAIN yo'q"
+
+  if [[ "$PROXY_MODE" == "http" ]] && ! docker ps --format '{{.Names}}' | grep -qx calc-nginx-http \
+     && [[ -n "$(ss -Htln "sport = :${HTTP_PORT:-8080}" 2>/dev/null)" ]]; then
+    error "${HTTP_PORT:-8080}-port band. .env dagi HTTP_PORT ni boshqa portga o'zgartiring (masalan 8090)"
+  fi
 
   docker network inspect "$EDGE_NETWORK" &>/dev/null || docker network create "$EDGE_NETWORK" >/dev/null
 
